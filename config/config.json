@@ -1,0 +1,29 @@
+{
+  "app": {
+    "name": "kokoroya-backend",
+    "env": "development",
+    "port": "8080"
+  },
+  "postgres": {
+    "host": "localhost",
+    "port": "5432",
+    "user": "postgres",
+    "password": "1234",
+    "db_name": "kokoroya",
+    "ssl_mode": "disable"
+  },
+  "redis": {
+    "host": "localhost",
+    "port": "6379",
+    "password": "1234",
+    "db": 0
+  },
+  "jwt": {
+    "secret": "change-me-in-env",
+    "access_ttl_min": 1440
+  },
+  "owner": {
+    "email": "owner@gmail.com",
+    "password": "asdf1234"
+  }
+}

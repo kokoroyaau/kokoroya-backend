@@ -1,0 +1,2 @@
+alter table labour_hour_entries drop constraint labour_hour_entries_user_id_entry_date_key;
+alter table labour_hour_entries add constraint labour_hour_entries_branch_user_date_key unique (branch_id, user_id, entry_date);
