@@ -1,0 +1,15 @@
+providers = ["go"]
+
+[phases.install]
+cmds = [
+  "go mod download",
+  "CGO_ENABLED=0 go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest",
+]
+
+[phases.build]
+cmds = [
+  "CGO_ENABLED=0 go build -o bin/api ./cmd/api",
+]
+
+[start]
+cmd = "migrate -path db/migrations -database \"postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB_NAME}?sslmode=${POSTGRES_SSL_MODE}\" up && exec ./bin/api"

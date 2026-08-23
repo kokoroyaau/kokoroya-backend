@@ -18,12 +18,18 @@ import (
 	"kokoroya-backend/internal/modules/labour"
 	"kokoroya-backend/internal/modules/schedule"
 	"kokoroya-backend/internal/modules/user"
+	"kokoroya-backend/internal/response"
 	"kokoroya-backend/internal/session"
 )
 
 func New(db *sql.DB, rdb *redis.Client, cfg *config.Config, log *logrus.Logger) *gin.Engine {
 	engine := gin.New()
 	engine.Use(middleware.Logger(log), middleware.Recovery(log), middleware.CORS())
+
+	engine.GET("/health", func(c *gin.Context) {
+		response.OK(c, 200, gin.H{"status": "ok"})
+	})
+
 	api := engine.Group("/v1")
 
 	userRepo := user.NewRepository(db)
