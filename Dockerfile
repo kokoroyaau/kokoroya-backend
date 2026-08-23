@@ -7,7 +7,7 @@ RUN CGO_ENABLED=0 go build -o /app/bin/api ./cmd/api
 RUN CGO_ENABLED=0 go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates curl
 WORKDIR /app
 COPY --from=builder /app/bin/api /usr/local/bin/api
 COPY --from=builder /go/bin/migrate /usr/local/bin/migrate
