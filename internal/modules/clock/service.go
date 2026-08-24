@@ -12,6 +12,13 @@ import (
 var ErrInvalidPin = errors.New("invalid pin")
 
 const maxShiftDuration = 16 * time.Hour
+const quarterHour = 15 * time.Minute
+
+func roundedHours(in, out time.Time) float64 {
+	d := out.Sub(in)
+	rounded := (d + quarterHour/2) / quarterHour * quarterHour
+	return rounded.Hours()
+}
 
 type PunchResult struct {
 	Name   string
@@ -57,7 +64,7 @@ func (s *service) Punch(ctx context.Context, pin string, branchID int64) (*Punch
 			return nil, err
 		}
 
-		hours := closed.ClockOutAt.Sub(closed.ClockInAt).Hours()
+		hours := roundedHours(closed.ClockInAt, *closed.ClockOutAt)
 		date := time.Date(closed.ClockInAt.Year(), closed.ClockInAt.Month(), closed.ClockInAt.Day(), 0, 0, 0, 0, closed.ClockInAt.Location())
 		if err := s.labourRepo.AddHours(ctx, closed.BranchID, closed.UserID, date, hours); err != nil {
 			return nil, err
