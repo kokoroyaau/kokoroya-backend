@@ -28,7 +28,7 @@ func (ctrl *Controller) Login(c *gin.Context) {
 	token, expiresAt, role, err := ctrl.service.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
-			response.Err(c, 401, err.Error())
+			response.Err(c, 401, "Email or password is incorrect")
 			return
 		}
 		response.Err(c, 500, "internal server error")
