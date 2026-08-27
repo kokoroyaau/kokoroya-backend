@@ -20,7 +20,7 @@ type Service interface {
 	Logout(ctx context.Context, jti string) error
 	// CreateUser: email and password are optional — a PIN-only employee
 	// (empty email/password) can clock in/out but never logs in.
-	CreateUser(ctx context.Context, name, email, password, role, phone, tfn, pin string, rateWeekday, rateWeekend *float64, permissions []string, branchIDs []int64) (*User, error)
+	CreateUser(ctx context.Context, name, email, password, role, phone, tfn, employerName, employerABN, pin string, rateWeekday, rateWeekend *float64, permissions []string, branchIDs []int64) (*User, error)
 	UpdateUser(ctx context.Context, id int64, fields UpdateFields) (*User, error)
 	DeleteUser(ctx context.Context, id int64) error
 	SetPermissions(ctx context.Context, userID int64, permissions []string) error
@@ -78,7 +78,7 @@ func (s *service) Logout(ctx context.Context, jti string) error {
 	return nil
 }
 
-func (s *service) CreateUser(ctx context.Context, name, email, password, role, phone, tfn, pin string, rateWeekday, rateWeekend *float64, permissions []string, branchIDs []int64) (*User, error) {
+func (s *service) CreateUser(ctx context.Context, name, email, password, role, phone, tfn, employerName, employerABN, pin string, rateWeekday, rateWeekend *float64, permissions []string, branchIDs []int64) (*User, error) {
 	u := &User{
 		Name:        name,
 		Role:        role,
@@ -107,6 +107,12 @@ func (s *service) CreateUser(ctx context.Context, name, email, password, role, p
 	}
 	if tfn != "" {
 		u.TFN = &tfn
+	}
+	if employerName != "" {
+		u.EmployerName = &employerName
+	}
+	if employerABN != "" {
+		u.EmployerABN = &employerABN
 	}
 	if pin != "" {
 		u.PIN = &pin

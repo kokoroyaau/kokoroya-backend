@@ -15,12 +15,14 @@ type Branch struct {
 }
 
 type Employee struct {
-	ID          int64    `json:"id"`
-	Name        string   `json:"name"`
-	Email       *string  `json:"email"`
-	Role        string   `json:"role"`
-	RateWeekday *float64 `json:"rate_weekday"`
-	RateWeekend *float64 `json:"rate_weekend"`
+	ID           int64    `json:"id"`
+	Name         string   `json:"name"`
+	Email        *string  `json:"email"`
+	Role         string   `json:"role"`
+	RateWeekday  *float64 `json:"rate_weekday"`
+	RateWeekend  *float64 `json:"rate_weekend"`
+	EmployerName *string  `json:"employer_name"`
+	EmployerABN  *string  `json:"employer_abn"`
 }
 
 type Repository interface {
@@ -121,7 +123,7 @@ func (r *repository) HasAccess(ctx context.Context, userID, branchID int64) (boo
 
 func (r *repository) ListEmployees(ctx context.Context, branchID int64) ([]*Employee, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		select u.id, u.name, u.email, u.role, u.rate_weekday, u.rate_weekend
+		select u.id, u.name, u.email, u.role, u.rate_weekday, u.rate_weekend, u.employer_name, u.employer_abn
 		from users u
 		join user_branches ub on ub.user_id = u.id
 		where ub.branch_id = $1
@@ -135,7 +137,7 @@ func (r *repository) ListEmployees(ctx context.Context, branchID int64) ([]*Empl
 	var employees []*Employee
 	for rows.Next() {
 		var e Employee
-		if err := rows.Scan(&e.ID, &e.Name, &e.Email, &e.Role, &e.RateWeekday, &e.RateWeekend); err != nil {
+		if err := rows.Scan(&e.ID, &e.Name, &e.Email, &e.Role, &e.RateWeekday, &e.RateWeekend, &e.EmployerName, &e.EmployerABN); err != nil {
 			return nil, err
 		}
 		employees = append(employees, &e)

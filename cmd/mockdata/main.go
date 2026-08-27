@@ -26,27 +26,33 @@ const mockPassword = "password123"
 var branchNames = []string{"[Mock] Branch A", "[Mock] Branch B"}
 
 type mockUser struct {
-	name        string
-	email       string
-	pin         string
-	permissions string // postgres array literal
-	branches    []int  // indexes into branchNames
+	name         string
+	email        string
+	pin          string
+	permissions  string // postgres array literal
+	branches     []int  // indexes into branchNames
+	employerName string
+	employerABN  string
 }
 
 var mockUsers = []mockUser{
 	{
-		name:        "Multi Branch Staff",
-		email:       "multi-staff@kokoroya.test",
-		pin:         "9911",
-		permissions: "{dashboard,labour,food-cost,clock-in}",
-		branches:    []int{0, 1},
+		name:         "Multi Branch Staff",
+		email:        "multi-staff@kokoroya.test",
+		pin:          "9911",
+		permissions:  "{dashboard,labour,food-cost,clock-in,salary}",
+		branches:     []int{0, 1},
+		employerName: "Backdoor Pty Ltd",
+		employerABN:  "68 678 033 273",
 	},
 	{
-		name:        "Branch A Staff",
-		email:       "branch-a-staff@kokoroya.test",
-		pin:         "9922",
-		permissions: "{dashboard,labour,food-cost,clock-in}",
-		branches:    []int{0},
+		name:         "Branch A Staff",
+		email:        "branch-a-staff@kokoroya.test",
+		pin:          "9922",
+		permissions:  "{dashboard,labour,food-cost,clock-in,salary}",
+		branches:     []int{0},
+		employerName: "Backdoor Pty Ltd",
+		employerABN:  "68 678 033 273",
 	},
 }
 
@@ -107,13 +113,15 @@ func seedUsers(db *sql.DB, log interface{ Infof(string, ...any) }) map[string]in
 	for _, u := range mockUsers {
 		var id int64
 		err := db.QueryRow(`
-			insert into users (name, email, password_hash, role, is_active, permissions, pin)
-			values ($1, $2, $3, 'employee', true, $4, $5)
+			insert into users (name, email, password_hash, role, is_active, permissions, pin, employer_name, employer_abn)
+			values ($1, $2, $3, 'employee', true, $4, $5, $6, $7)
 			on conflict (email) do update set
 				permissions = excluded.permissions,
-				pin = excluded.pin
+				pin = excluded.pin,
+				employer_name = excluded.employer_name,
+				employer_abn = excluded.employer_abn
 			returning id
-		`, u.name, u.email, string(hash), u.permissions, u.pin).Scan(&id)
+		`, u.name, u.email, string(hash), u.permissions, u.pin, u.employerName, u.employerABN).Scan(&id)
 		if err != nil {
 			panic(fmt.Errorf("user %s: %w", u.email, err))
 		}
@@ -162,7 +170,7 @@ func seedClockEntries(db *sql.DB, log interface{ Infof(string, ...any) }, branch
 
 	type shift struct {
 		userID, branchID int64
-		day               int // offset from monday
+		day              int // offset from monday
 	}
 	shifts := []shift{
 		{multiStaffID, branchAID, 0},

@@ -64,7 +64,7 @@ func (ctrl *Controller) CreateUser(c *gin.Context) {
 	if req.Pin != nil {
 		pin = *req.Pin
 	}
-	u, err := ctrl.service.CreateUser(c.Request.Context(), req.Name, req.Email, req.Password, req.Role, req.Phone, req.TFN, pin, req.RateWeekday, req.RateWeekend, req.Permissions, req.BranchIDs)
+	u, err := ctrl.service.CreateUser(c.Request.Context(), req.Name, req.Email, req.Password, req.Role, req.Phone, req.TFN, req.EmployerName, req.EmployerABN, pin, req.RateWeekday, req.RateWeekend, req.Permissions, req.BranchIDs)
 	if err != nil {
 		if errors.Is(err, ErrEmailExists) {
 			response.Err(c, 409, err.Error())
@@ -91,15 +91,17 @@ func (ctrl *Controller) UpdateUser(c *gin.Context) {
 	}
 
 	u, err := ctrl.service.UpdateUser(c.Request.Context(), id, UpdateFields{
-		Name:        req.Name,
-		Email:       req.Email,
-		Phone:       req.Phone,
-		TFN:         req.TFN,
-		PIN:         req.Pin,
-		Role:        req.Role,
-		IsActive:    req.IsActive,
-		RateWeekday: req.RateWeekday,
-		RateWeekend: req.RateWeekend,
+		Name:         req.Name,
+		Email:        req.Email,
+		Phone:        req.Phone,
+		TFN:          req.TFN,
+		EmployerName: req.EmployerName,
+		EmployerABN:  req.EmployerABN,
+		PIN:          req.Pin,
+		Role:         req.Role,
+		IsActive:     req.IsActive,
+		RateWeekday:  req.RateWeekday,
+		RateWeekend:  req.RateWeekend,
 	})
 	if err != nil {
 		response.DBErr(c, err)

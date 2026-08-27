@@ -24,11 +24,27 @@ type ShiftEntryInfo struct {
 	ClockOutAt *time.Time `json:"clock_out_at"`
 }
 
+// PayBreakdown is one payslip line: hours worked in a category (weekday,
+// Saturday, or Sunday), the effective rate for those hours, and the total.
+// Rate is derived as Total/Hours rather than looked up separately, so it
+// stays exact even if the resolved rate varied within the period (e.g. a
+// weekly rate change mid-fortnight) — Total always equals Hours * Rate.
+type PayBreakdown struct {
+	Hours float64 `json:"hours"`
+	Rate  float64 `json:"rate"`
+	Total float64 `json:"total"`
+}
+
 type EmployeeWeekRow struct {
 	UserID          int64                       `json:"user_id"`
 	Name            string                      `json:"name"`
+	EmployerName    *string                     `json:"employer_name"`
+	EmployerABN     *string                     `json:"employer_abn"`
 	DailyHours      map[string]float64          `json:"daily_hours"`
 	DailyShifts     map[string][]ShiftEntryInfo `json:"daily_shifts"`
+	Weekday         PayBreakdown                `json:"weekday"`
+	Saturday        PayBreakdown                `json:"saturday"`
+	Sunday          PayBreakdown                `json:"sunday"`
 	TotalHours      float64                     `json:"total_hours"`
 	PercentageOfAll float64                     `json:"percentage_of_all"`
 	GrossPay        float64                     `json:"gross_pay"`
@@ -165,6 +181,7 @@ func (s *service) GetReport(ctx context.Context, branchID int64, start, end time
 		daily := make(map[string]float64, len(dates))
 		dailyShifts := make(map[string][]ShiftEntryInfo, len(dates))
 		var total, grossPay float64
+		var weekdayPay, saturdayPay, sundayPay PayBreakdown
 		for _, d := range dates {
 			hours := hoursByUser[employee.ID][d]
 			daily[d] = hours
@@ -184,17 +201,45 @@ func (s *service) GetReport(ctx context.Context, branchID int64, start, end time
 				if err != nil {
 					return nil, err
 				}
-				grossPay += hours * rateForDay(date, employee.RateWeekday, employee.RateWeekend, branchWeekday, branchWeekend)
+				amount := hours * rateForDay(date, employee.RateWeekday, employee.RateWeekend, branchWeekday, branchWeekend)
+				grossPay += amount
+
+				switch date.Weekday() {
+				case time.Saturday:
+					saturdayPay.Hours += hours
+					saturdayPay.Total += amount
+				case time.Sunday:
+					sundayPay.Hours += hours
+					sundayPay.Total += amount
+				default:
+					weekdayPay.Hours += hours
+					weekdayPay.Total += amount
+				}
 			}
 		}
+		if weekdayPay.Hours > 0 {
+			weekdayPay.Rate = weekdayPay.Total / weekdayPay.Hours
+		}
+		if saturdayPay.Hours > 0 {
+			saturdayPay.Rate = saturdayPay.Total / saturdayPay.Hours
+		}
+		if sundayPay.Hours > 0 {
+			sundayPay.Rate = sundayPay.Total / sundayPay.Hours
+		}
+
 		weekTotalHours += total
 		rows = append(rows, EmployeeWeekRow{
-			UserID:      employee.ID,
-			Name:        employee.Name,
-			DailyHours:  daily,
-			DailyShifts: dailyShifts,
-			TotalHours:  total,
-			GrossPay:    grossPay,
+			UserID:       employee.ID,
+			Name:         employee.Name,
+			EmployerName: employee.EmployerName,
+			EmployerABN:  employee.EmployerABN,
+			DailyHours:   daily,
+			DailyShifts:  dailyShifts,
+			Weekday:      weekdayPay,
+			Saturday:     saturdayPay,
+			Sunday:       sundayPay,
+			TotalHours:   total,
+			GrossPay:     grossPay,
 		})
 	}
 	for i := range rows {
