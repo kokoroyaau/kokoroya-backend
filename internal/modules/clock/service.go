@@ -10,6 +10,7 @@ import (
 )
 
 var ErrInvalidPin = errors.New("invalid pin")
+var ErrNotFound = errors.New("time entry not found")
 
 const maxShiftDuration = 16 * time.Hour
 const quarterHour = 15 * time.Minute
@@ -28,6 +29,7 @@ type PunchResult struct {
 
 type Service interface {
 	Punch(ctx context.Context, pin string, branchID int64) (*PunchResult, error)
+	UpdateEntry(ctx context.Context, id, branchID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
 }
 
 type service struct {
@@ -78,4 +80,61 @@ func (s *service) Punch(ctx context.Context, pin string, branchID int64) (*Punch
 		return nil, err
 	}
 	return &PunchResult{Name: u.Name, Action: "in", At: opened.ClockInAt}, nil
+}
+
+func dayOf(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
+// UpdateEntry corrects a time entry's clock-in/out and recomputes that
+// employee's labour hours for every day touched (both the old and new date,
+// when the edit moves the entry across days) from the raw time entries, so
+// the stored total always matches what's actually on the clock rather than
+// drifting via delta adjustments.
+func (s *service) UpdateEntry(ctx context.Context, id, branchID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error) {
+	old, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if old == nil || old.BranchID != branchID {
+		return nil, ErrNotFound
+	}
+
+	updated, err := s.repo.Update(ctx, id, clockInAt, clockOutAt)
+	if err != nil {
+		return nil, err
+	}
+
+	oldDate := dayOf(old.ClockInAt)
+	newDate := dayOf(updated.ClockInAt)
+	if err := s.recomputeDay(ctx, branchID, updated.UserID, oldDate); err != nil {
+		return nil, err
+	}
+	if !newDate.Equal(oldDate) {
+		if err := s.recomputeDay(ctx, branchID, updated.UserID, newDate); err != nil {
+			return nil, err
+		}
+	}
+
+	return updated, nil
+}
+
+// recomputeDay re-sums the employee's rounded hours for date from the raw
+// time entries and overwrites the stored total, rather than adding a delta,
+// so an edit can't leave the total out of sync with the clock.
+func (s *service) recomputeDay(ctx context.Context, branchID, userID int64, date time.Time) error {
+	shifts, err := s.labourRepo.ListShiftEntries(ctx, branchID, date, date)
+	if err != nil {
+		return err
+	}
+
+	var total float64
+	for _, sh := range shifts {
+		if sh.UserID != userID || sh.ClockOutAt == nil {
+			continue
+		}
+		total += roundedHours(sh.ClockInAt, *sh.ClockOutAt)
+	}
+
+	return s.labourRepo.UpsertHourEntry(ctx, branchID, userID, date, total)
 }

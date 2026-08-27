@@ -13,6 +13,7 @@ type HourEntry struct {
 }
 
 type ShiftEntry struct {
+	ID         int64
 	UserID     int64
 	ClockInAt  time.Time
 	ClockOutAt *time.Time
@@ -58,7 +59,7 @@ func (r *repository) ListHourEntries(ctx context.Context, branchID int64, from, 
 
 func (r *repository) ListShiftEntries(ctx context.Context, branchID int64, from, to time.Time) ([]*ShiftEntry, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		select user_id, clock_in_at, clock_out_at from time_entries
+		select id, user_id, clock_in_at, clock_out_at from time_entries
 		where branch_id = $1 and clock_in_at >= $2 and clock_in_at < $3
 		order by clock_in_at
 	`, branchID, from, to.AddDate(0, 0, 1))
@@ -70,7 +71,7 @@ func (r *repository) ListShiftEntries(ctx context.Context, branchID int64, from,
 	var entries []*ShiftEntry
 	for rows.Next() {
 		var e ShiftEntry
-		if err := rows.Scan(&e.UserID, &e.ClockInAt, &e.ClockOutAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.UserID, &e.ClockInAt, &e.ClockOutAt); err != nil {
 			return nil, err
 		}
 		entries = append(entries, &e)

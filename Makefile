@@ -4,7 +4,7 @@ export
 MIGRATIONS_DIR := db/migrations
 DB_URL := postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=$(POSTGRES_SSLMODE)
 
-.PHONY: wire migrate-up migrate-down migrate-force migrate-version migrate-create run build seed
+.PHONY: wire migrate-up migrate-down migrate-force migrate-version migrate-create run build seed mockdata
 
 ## Regenerate wire_gen.go from wire.go injectors
 wire:
@@ -41,3 +41,7 @@ build:
 ## Seed the owner user (idempotent)
 seed:
 	go run ./cmd/seed
+
+## Seed mock branches/staff/clock/food-cost data for local testing (idempotent)
+mockdata:
+	go run ./cmd/mockdata

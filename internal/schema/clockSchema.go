@@ -11,3 +11,8 @@ type PunchResponse struct {
 	Name   string    `json:"name"`
 	At     time.Time `json:"at"`
 }
+
+type UpdateClockEntryRequest struct {
+	ClockInAt  time.Time  `json:"clock_in_at" binding:"required"`
+	ClockOutAt *time.Time `json:"clock_out_at"`
+}

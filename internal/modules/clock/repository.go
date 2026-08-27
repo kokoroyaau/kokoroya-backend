@@ -16,8 +16,10 @@ type TimeEntry struct {
 
 type Repository interface {
 	FindOpenByUser(ctx context.Context, userID int64) (*TimeEntry, error)
+	FindByID(ctx context.Context, id int64) (*TimeEntry, error)
 	Open(ctx context.Context, userID, branchID int64) (*TimeEntry, error)
 	Close(ctx context.Context, id int64) (*TimeEntry, error)
+	Update(ctx context.Context, id int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
 }
 
 type repository struct {
@@ -67,5 +69,24 @@ func (r *repository) Close(ctx context.Context, id int64) (*TimeEntry, error) {
 		update time_entries set clock_out_at = now() where id = $1
 		returning `+timeEntryColumns+`
 	`, id)
+	return scanTimeEntry(row)
+}
+
+func (r *repository) FindByID(ctx context.Context, id int64) (*TimeEntry, error) {
+	row := r.db.QueryRowContext(ctx, `
+		select `+timeEntryColumns+` from time_entries where id = $1
+	`, id)
+	e, err := scanTimeEntry(row)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return e, err
+}
+
+func (r *repository) Update(ctx context.Context, id int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error) {
+	row := r.db.QueryRowContext(ctx, `
+		update time_entries set clock_in_at = $2, clock_out_at = $3 where id = $1
+		returning `+timeEntryColumns+`
+	`, id, clockInAt, clockOutAt)
 	return scanTimeEntry(row)
 }

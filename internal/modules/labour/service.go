@@ -19,6 +19,7 @@ const (
 )
 
 type ShiftEntryInfo struct {
+	ID         int64      `json:"id"`
 	ClockInAt  time.Time  `json:"clock_in_at"`
 	ClockOutAt *time.Time `json:"clock_out_at"`
 }
@@ -146,6 +147,7 @@ func (s *service) GetReport(ctx context.Context, branchID int64, start, end time
 		}
 		d := sh.ClockInAt.Format(dateLayout)
 		shiftsByUser[sh.UserID][d] = append(shiftsByUser[sh.UserID][d], ShiftEntryInfo{
+			ID:         sh.ID,
 			ClockInAt:  sh.ClockInAt,
 			ClockOutAt: sh.ClockOutAt,
 		})
