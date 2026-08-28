@@ -161,7 +161,7 @@ func (s *service) GetReport(ctx context.Context, branchID int64, start, end time
 		if shiftsByUser[sh.UserID] == nil {
 			shiftsByUser[sh.UserID] = make(map[string][]ShiftEntryInfo)
 		}
-		d := sh.ClockInAt.Format(dateLayout)
+		d := dateutil.DayOf(sh.ClockInAt).Format(dateLayout)
 		shiftsByUser[sh.UserID][d] = append(shiftsByUser[sh.UserID][d], ShiftEntryInfo{
 			ID:         sh.ID,
 			ClockInAt:  sh.ClockInAt,

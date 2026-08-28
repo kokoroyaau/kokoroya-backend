@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"kokoroya-backend/internal/dateutil"
 	"kokoroya-backend/internal/modules/labour"
 	"kokoroya-backend/internal/modules/user"
 )
@@ -67,7 +68,7 @@ func (s *service) Punch(ctx context.Context, pin string, branchID int64) (*Punch
 		}
 
 		hours := roundedHours(closed.ClockInAt, *closed.ClockOutAt)
-		date := time.Date(closed.ClockInAt.Year(), closed.ClockInAt.Month(), closed.ClockInAt.Day(), 0, 0, 0, 0, closed.ClockInAt.Location())
+		date := dateutil.DayOf(closed.ClockInAt)
 		if err := s.labourRepo.AddHours(ctx, closed.BranchID, closed.UserID, date, hours); err != nil {
 			return nil, err
 		}
@@ -80,10 +81,6 @@ func (s *service) Punch(ctx context.Context, pin string, branchID int64) (*Punch
 		return nil, err
 	}
 	return &PunchResult{Name: u.Name, Action: "in", At: opened.ClockInAt}, nil
-}
-
-func dayOf(t time.Time) time.Time {
-	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
 
 // UpdateEntry corrects a time entry's clock-in/out and recomputes that
@@ -105,8 +102,8 @@ func (s *service) UpdateEntry(ctx context.Context, id, branchID int64, clockInAt
 		return nil, err
 	}
 
-	oldDate := dayOf(old.ClockInAt)
-	newDate := dayOf(updated.ClockInAt)
+	oldDate := dateutil.DayOf(old.ClockInAt)
+	newDate := dateutil.DayOf(updated.ClockInAt)
 	if err := s.recomputeDay(ctx, branchID, updated.UserID, oldDate); err != nil {
 		return nil, err
 	}
