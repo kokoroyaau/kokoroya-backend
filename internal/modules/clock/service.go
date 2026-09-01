@@ -26,6 +26,7 @@ type PunchResult struct {
 	Name   string
 	Action string
 	At     time.Time
+	Hours  *float64
 }
 
 type Service interface {
@@ -73,7 +74,7 @@ func (s *service) Punch(ctx context.Context, pin string, branchID int64) (*Punch
 			return nil, err
 		}
 
-		return &PunchResult{Name: u.Name, Action: "out", At: *closed.ClockOutAt}, nil
+		return &PunchResult{Name: u.Name, Action: "out", At: *closed.ClockOutAt, Hours: &hours}, nil
 	}
 
 	opened, err := s.repo.Open(ctx, u.ID, branchID)

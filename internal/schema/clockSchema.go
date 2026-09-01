@@ -10,6 +10,7 @@ type PunchResponse struct {
 	Action string    `json:"action"`
 	Name   string    `json:"name"`
 	At     time.Time `json:"at"`
+	Hours  *float64  `json:"hours,omitempty"`
 }
 
 type UpdateClockEntryRequest struct {

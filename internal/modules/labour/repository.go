@@ -26,6 +26,15 @@ type Repository interface {
 	AddHours(ctx context.Context, branchID, userID int64, date time.Time, deltaHours float64) error
 	FindWeeklyRate(ctx context.Context, branchID int64, weekStart time.Time) (weekdayRate, weekendRate float64, ok bool, err error)
 	UpsertWeeklyRate(ctx context.Context, branchID int64, weekStart time.Time, weekdayRate, weekendRate float64) error
+	ListPaySplits(ctx context.Context, branchID int64, from, to time.Time) ([]*PaySplit, error)
+	UpsertPaySplit(ctx context.Context, branchID, userID int64, weekStart time.Time, weekdayHours, weekendHours float64) error
+}
+
+type PaySplit struct {
+	UserID        int64
+	WeekStartDate time.Time
+	WeekdayHours  float64
+	WeekendHours  float64
 }
 
 type repository struct {
@@ -119,5 +128,35 @@ func (r *repository) UpsertWeeklyRate(ctx context.Context, branchID int64, weekS
 		values ($1, $2, $3, $4)
 		on conflict (branch_id, week_start_date) do update set weekday_rate = excluded.weekday_rate, weekend_rate = excluded.weekend_rate, updated_at = now()
 	`, branchID, weekStart, weekdayRate, weekendRate)
+	return err
+}
+
+func (r *repository) ListPaySplits(ctx context.Context, branchID int64, from, to time.Time) ([]*PaySplit, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		select user_id, week_start_date, weekday_hours, weekend_hours from labour_pay_splits
+		where branch_id = $1 and week_start_date >= $2 and week_start_date <= $3
+	`, branchID, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var splits []*PaySplit
+	for rows.Next() {
+		var s PaySplit
+		if err := rows.Scan(&s.UserID, &s.WeekStartDate, &s.WeekdayHours, &s.WeekendHours); err != nil {
+			return nil, err
+		}
+		splits = append(splits, &s)
+	}
+	return splits, rows.Err()
+}
+
+func (r *repository) UpsertPaySplit(ctx context.Context, branchID, userID int64, weekStart time.Time, weekdayHours, weekendHours float64) error {
+	_, err := r.db.ExecContext(ctx, `
+		insert into labour_pay_splits (branch_id, user_id, week_start_date, weekday_hours, weekend_hours)
+		values ($1, $2, $3, $4, $5)
+		on conflict (branch_id, user_id, week_start_date) do update set weekday_hours = excluded.weekday_hours, weekend_hours = excluded.weekend_hours, updated_at = now()
+	`, branchID, userID, weekStart, weekdayHours, weekendHours)
 	return err
 }

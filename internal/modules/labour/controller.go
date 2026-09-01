@@ -78,3 +78,22 @@ func (ctrl *Controller) UpsertWeeklyRate(c *gin.Context) {
 	}
 	response.NoContent(c)
 }
+
+func (ctrl *Controller) UpsertPaySplit(c *gin.Context) {
+	var req schema.UpsertPaySplitRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Err(c, 400, err.Error())
+		return
+	}
+	weekStart, err := time.Parse("2006-01-02", req.WeekStartDate)
+	if err != nil || weekStart.Weekday() != time.Monday {
+		response.Err(c, 400, "week_start_date must be in YYYY-MM-DD format and a Monday")
+		return
+	}
+
+	if err := ctrl.service.UpsertPaySplit(c.Request.Context(), c.GetInt64("branchID"), req.UserID, weekStart, req.WeekdayHours, req.WeekendHours); err != nil {
+		response.Err(c, 500, "internal server error")
+		return
+	}
+	response.NoContent(c)
+}

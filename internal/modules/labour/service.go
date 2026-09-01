@@ -48,6 +48,12 @@ type EmployeeWeekRow struct {
 	TotalHours      float64                     `json:"total_hours"`
 	PercentageOfAll float64                     `json:"percentage_of_all"`
 	GrossPay        float64                     `json:"gross_pay"`
+	CashHours       float64                     `json:"cash_hours"`
+	CashAmount      float64                     `json:"cash_amount"`
+	HourCapWeekday  *float64                    `json:"hour_cap_weekday"`
+	HourCapWeekend  *float64                    `json:"hour_cap_weekend"`
+	PaySplitWeekday *float64                    `json:"pay_split_weekday"`
+	PaySplitWeekend *float64                    `json:"pay_split_weekend"`
 }
 
 type LabourDayInfo struct {
@@ -71,6 +77,7 @@ type Service interface {
 	GetReport(ctx context.Context, branchID int64, start, end time.Time) (*Report, error)
 	UpsertHourEntry(ctx context.Context, branchID, userID int64, date time.Time, hours float64) error
 	UpsertWeeklyRate(ctx context.Context, branchID int64, weekStart time.Time, weekdayRate, weekendRate float64) error
+	UpsertPaySplit(ctx context.Context, branchID, userID int64, weekStart time.Time, weekdayHours, weekendHours float64) error
 }
 
 type service struct {
@@ -169,19 +176,33 @@ func (s *service) GetReport(ctx context.Context, branchID int64, start, end time
 		})
 	}
 
+	splits, err := s.repo.ListPaySplits(ctx, branchID, dateutil.MondayOf(start), end)
+	if err != nil {
+		return nil, err
+	}
+	splitsByUser := make(map[int64]map[string]*PaySplit)
+	for _, sp := range splits {
+		if splitsByUser[sp.UserID] == nil {
+			splitsByUser[sp.UserID] = make(map[string]*PaySplit)
+		}
+		splitsByUser[sp.UserID][sp.WeekStartDate.Format(dateLayout)] = sp
+	}
+
 	branchRate := s.branchRateResolver(ctx, branchID)
 	displayWeekdayRate, displayWeekendRate, err := branchRate(start)
 	if err != nil {
 		return nil, err
 	}
 
+	type weekActual struct{ weekdayHours, satHours, sunHours float64 }
+
 	rows := make([]EmployeeWeekRow, 0, len(employees))
 	var weekTotalHours float64
 	for _, employee := range employees {
 		daily := make(map[string]float64, len(dates))
 		dailyShifts := make(map[string][]ShiftEntryInfo, len(dates))
-		var total, grossPay float64
-		var weekdayPay, saturdayPay, sundayPay PayBreakdown
+		weekActuals := make(map[string]*weekActual)
+		var total float64
 		for _, d := range dates {
 			hours := hoursByUser[employee.ID][d]
 			daily[d] = hours
@@ -197,26 +218,86 @@ func (s *service) GetReport(ctx context.Context, branchID int64, start, end time
 				if err != nil {
 					return nil, err
 				}
-				branchWeekday, branchWeekend, err := branchRate(date)
-				if err != nil {
-					return nil, err
+				weekKey := dateutil.MondayOf(date).Format(dateLayout)
+				wa := weekActuals[weekKey]
+				if wa == nil {
+					wa = &weekActual{}
+					weekActuals[weekKey] = wa
 				}
-				amount := hours * rateForDay(date, employee.RateWeekday, employee.RateWeekend, branchWeekday, branchWeekend)
-				grossPay += amount
-
 				switch date.Weekday() {
 				case time.Saturday:
-					saturdayPay.Hours += hours
-					saturdayPay.Total += amount
+					wa.satHours += hours
 				case time.Sunday:
-					sundayPay.Hours += hours
-					sundayPay.Total += amount
+					wa.sunHours += hours
 				default:
-					weekdayPay.Hours += hours
-					weekdayPay.Total += amount
+					wa.weekdayHours += hours
 				}
 			}
 		}
+
+		var grossPay, cashHours, cashAmount float64
+		var weekdayPay, saturdayPay, sundayPay PayBreakdown
+		for weekKey, wa := range weekActuals {
+			weekStart, err := time.Parse(dateLayout, weekKey)
+			if err != nil {
+				return nil, err
+			}
+			branchWeekday, branchWeekend, err := branchRate(weekStart)
+			if err != nil {
+				return nil, err
+			}
+			weekdayRate := rateForDay(weekStart, employee.RateWeekday, employee.RateWeekend, branchWeekday, branchWeekend)
+			weekendRate := rateForDay(weekStart.AddDate(0, 0, 5), employee.RateWeekday, employee.RateWeekend, branchWeekday, branchWeekend)
+
+			split := splitsByUser[employee.ID][weekKey]
+			if split == nil {
+				weekdayPay.Hours += wa.weekdayHours
+				weekdayPay.Total += wa.weekdayHours * weekdayRate
+				saturdayPay.Hours += wa.satHours
+				saturdayPay.Total += wa.satHours * weekendRate
+				sundayPay.Hours += wa.sunHours
+				sundayPay.Total += wa.sunHours * weekendRate
+				grossPay += wa.weekdayHours*weekdayRate + (wa.satHours+wa.sunHours)*weekendRate
+				continue
+			}
+
+			actualTotal := wa.weekdayHours + wa.satHours + wa.sunHours
+			paidWeekday, paidWeekend := split.WeekdayHours, split.WeekendHours
+			if paidWeekday < 0 {
+				paidWeekday = 0
+			}
+			if paidWeekend < 0 {
+				paidWeekend = 0
+			}
+			if excess := paidWeekday + paidWeekend - actualTotal; excess > 0 {
+				if paidWeekend >= excess {
+					paidWeekend -= excess
+				} else {
+					excess -= paidWeekend
+					paidWeekend = 0
+					paidWeekday -= excess
+					if paidWeekday < 0 {
+						paidWeekday = 0
+					}
+				}
+			}
+			cash := actualTotal - paidWeekday - paidWeekend
+
+			weekdayPay.Hours += paidWeekday
+			weekdayPay.Total += paidWeekday * weekdayRate
+			// The manual split collapses Saturday/Sunday into one payable
+			// "weekend" bucket, so it's carried on the Saturday breakdown —
+			// Sunday stays untouched (0) and its payslip line hides itself.
+			saturdayPay.Hours += paidWeekend
+			saturdayPay.Total += paidWeekend * weekendRate
+			grossPay += paidWeekday*weekdayRate + paidWeekend*weekendRate
+			cashHours += cash
+			// ponytail: cash hours are valued at the weekday rate as a
+			// stand-in — revisit if cash should follow whichever day it
+			// was actually worked on.
+			cashAmount += cash * weekdayRate
+		}
+
 		if weekdayPay.Hours > 0 {
 			weekdayPay.Rate = weekdayPay.Total / weekdayPay.Hours
 		}
@@ -227,19 +308,30 @@ func (s *service) GetReport(ctx context.Context, branchID int64, start, end time
 			sundayPay.Rate = sundayPay.Total / sundayPay.Hours
 		}
 
+		var paySplitWeekday, paySplitWeekend *float64
+		if sp := splitsByUser[employee.ID][dateutil.MondayOf(start).Format(dateLayout)]; sp != nil {
+			paySplitWeekday, paySplitWeekend = &sp.WeekdayHours, &sp.WeekendHours
+		}
+
 		weekTotalHours += total
 		rows = append(rows, EmployeeWeekRow{
-			UserID:       employee.ID,
-			Name:         employee.Name,
-			EmployerName: employee.EmployerName,
-			EmployerABN:  employee.EmployerABN,
-			DailyHours:   daily,
-			DailyShifts:  dailyShifts,
-			Weekday:      weekdayPay,
-			Saturday:     saturdayPay,
-			Sunday:       sundayPay,
-			TotalHours:   total,
-			GrossPay:     grossPay,
+			UserID:          employee.ID,
+			Name:            employee.Name,
+			EmployerName:    employee.EmployerName,
+			EmployerABN:     employee.EmployerABN,
+			DailyHours:      daily,
+			DailyShifts:     dailyShifts,
+			Weekday:         weekdayPay,
+			Saturday:        saturdayPay,
+			Sunday:          sundayPay,
+			TotalHours:      total,
+			GrossPay:        grossPay,
+			CashHours:       cashHours,
+			CashAmount:      cashAmount,
+			HourCapWeekday:  employee.HourCapWeekday,
+			HourCapWeekend:  employee.HourCapWeekend,
+			PaySplitWeekday: paySplitWeekday,
+			PaySplitWeekend: paySplitWeekend,
 		})
 	}
 	for i := range rows {
@@ -297,4 +389,8 @@ func (s *service) UpsertHourEntry(ctx context.Context, branchID, userID int64, d
 
 func (s *service) UpsertWeeklyRate(ctx context.Context, branchID int64, weekStart time.Time, weekdayRate, weekendRate float64) error {
 	return s.repo.UpsertWeeklyRate(ctx, branchID, weekStart, weekdayRate, weekendRate)
+}
+
+func (s *service) UpsertPaySplit(ctx context.Context, branchID, userID int64, weekStart time.Time, weekdayHours, weekendHours float64) error {
+	return s.repo.UpsertPaySplit(ctx, branchID, userID, weekStart, weekdayHours, weekendHours)
 }

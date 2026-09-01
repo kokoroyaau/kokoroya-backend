@@ -11,3 +11,10 @@ type UpsertLabourRateRequest struct {
 	WeekdayRate   float64 `json:"weekday_rate" binding:"min=0"`
 	WeekendRate   float64 `json:"weekend_rate" binding:"min=0"`
 }
+
+type UpsertPaySplitRequest struct {
+	UserID        int64   `json:"user_id" binding:"required"`
+	WeekStartDate string  `json:"week_start_date" binding:"required"`
+	WeekdayHours  float64 `json:"weekday_hours" binding:"min=0"`
+	WeekendHours  float64 `json:"weekend_hours" binding:"min=0"`
+}

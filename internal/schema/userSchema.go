@@ -22,17 +22,19 @@ type CreateUserRequest struct {
 }
 
 type UpdateUserRequest struct {
-	Name         *string  `json:"name"`
-	Email        *string  `json:"email"`
-	Phone        *string  `json:"phone"`
-	TFN          *string  `json:"tfn"`
-	EmployerName *string  `json:"employer_name"`
-	EmployerABN  *string  `json:"employer_abn"`
-	Pin          *string  `json:"pin" binding:"omitempty,len=4,numeric"`
-	Role         *string  `json:"role"`
-	IsActive     *bool    `json:"is_active"`
-	RateWeekday  *float64 `json:"rate_weekday" binding:"omitempty,min=0"`
-	RateWeekend  *float64 `json:"rate_weekend" binding:"omitempty,min=0"`
+	Name           *string  `json:"name"`
+	Email          *string  `json:"email"`
+	Phone          *string  `json:"phone"`
+	TFN            *string  `json:"tfn"`
+	EmployerName   *string  `json:"employer_name"`
+	EmployerABN    *string  `json:"employer_abn"`
+	Pin            *string  `json:"pin" binding:"omitempty,len=4,numeric"`
+	Role           *string  `json:"role"`
+	IsActive       *bool    `json:"is_active"`
+	RateWeekday    *float64 `json:"rate_weekday" binding:"omitempty,min=0"`
+	RateWeekend    *float64 `json:"rate_weekend" binding:"omitempty,min=0"`
+	HourCapWeekday *float64 `json:"hour_cap_weekday" binding:"omitempty,min=0"`
+	HourCapWeekend *float64 `json:"hour_cap_weekend" binding:"omitempty,min=0"`
 }
 
 type SetPermissionsRequest struct {

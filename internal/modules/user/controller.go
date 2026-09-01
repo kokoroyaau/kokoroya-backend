@@ -91,17 +91,19 @@ func (ctrl *Controller) UpdateUser(c *gin.Context) {
 	}
 
 	u, err := ctrl.service.UpdateUser(c.Request.Context(), id, UpdateFields{
-		Name:         req.Name,
-		Email:        req.Email,
-		Phone:        req.Phone,
-		TFN:          req.TFN,
-		EmployerName: req.EmployerName,
-		EmployerABN:  req.EmployerABN,
-		PIN:          req.Pin,
-		Role:         req.Role,
-		IsActive:     req.IsActive,
-		RateWeekday:  req.RateWeekday,
-		RateWeekend:  req.RateWeekend,
+		Name:           req.Name,
+		Email:          req.Email,
+		Phone:          req.Phone,
+		TFN:            req.TFN,
+		EmployerName:   req.EmployerName,
+		EmployerABN:    req.EmployerABN,
+		PIN:            req.Pin,
+		Role:           req.Role,
+		IsActive:       req.IsActive,
+		RateWeekday:    req.RateWeekday,
+		RateWeekend:    req.RateWeekend,
+		HourCapWeekday: req.HourCapWeekday,
+		HourCapWeekend: req.HourCapWeekend,
 	})
 	if err != nil {
 		response.DBErr(c, err)

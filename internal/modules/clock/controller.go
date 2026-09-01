@@ -34,6 +34,7 @@ func (ctrl *Controller) Punch(c *gin.Context) {
 		Action: result.Action,
 		Name:   result.Name,
 		At:     result.At,
+		Hours:  result.Hours,
 	})
 }
 

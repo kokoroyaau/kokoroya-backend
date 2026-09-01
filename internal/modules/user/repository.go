@@ -11,23 +11,25 @@ import (
 
 // User is a row in the users table.
 type User struct {
-	ID           int64     `json:"id"`
-	Name         string    `json:"name"`
-	Email        *string   `json:"email"`
-	PasswordHash *string   `json:"-"`
-	Role         string    `json:"role"`
-	Phone        *string   `json:"phone"`
-	TFN          *string   `json:"tfn"`
-	EmployerName *string   `json:"employer_name"`
-	EmployerABN  *string   `json:"employer_abn"`
-	PIN          *string   `json:"pin,omitempty"`
-	IsActive     bool      `json:"is_active"`
-	Permissions  []string  `json:"permissions"`
-	BranchIDs    []int64   `json:"branch_ids,omitempty"`
-	RateWeekday  *float64  `json:"rate_weekday"`
-	RateWeekend  *float64  `json:"rate_weekend"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID             int64     `json:"id"`
+	Name           string    `json:"name"`
+	Email          *string   `json:"email"`
+	PasswordHash   *string   `json:"-"`
+	Role           string    `json:"role"`
+	Phone          *string   `json:"phone"`
+	TFN            *string   `json:"tfn"`
+	EmployerName   *string   `json:"employer_name"`
+	EmployerABN    *string   `json:"employer_abn"`
+	PIN            *string   `json:"pin,omitempty"`
+	IsActive       bool      `json:"is_active"`
+	Permissions    []string  `json:"permissions"`
+	BranchIDs      []int64   `json:"branch_ids,omitempty"`
+	RateWeekday    *float64  `json:"rate_weekday"`
+	RateWeekend    *float64  `json:"rate_weekend"`
+	HourCapWeekday *float64  `json:"hour_cap_weekday"`
+	HourCapWeekend *float64  `json:"hour_cap_weekend"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type Filter struct {
@@ -37,17 +39,19 @@ type Filter struct {
 }
 
 type UpdateFields struct {
-	Name         *string
-	Email        *string
-	Phone        *string
-	TFN          *string
-	EmployerName *string
-	EmployerABN  *string
-	PIN          *string
-	Role         *string
-	IsActive     *bool
-	RateWeekday  *float64
-	RateWeekend  *float64
+	Name           *string
+	Email          *string
+	Phone          *string
+	TFN            *string
+	EmployerName   *string
+	EmployerABN    *string
+	PIN            *string
+	Role           *string
+	IsActive       *bool
+	RateWeekday    *float64
+	RateWeekend    *float64
+	HourCapWeekday *float64
+	HourCapWeekend *float64
 }
 
 type Repository interface {
@@ -69,11 +73,11 @@ func NewRepository(db *sql.DB) Repository {
 	return &repository{db: db}
 }
 
-const userColumns = `id, name, email, password_hash, role, phone, tfn, employer_name, employer_abn, pin, is_active, permissions, rate_weekday, rate_weekend, created_at, updated_at`
+const userColumns = `id, name, email, password_hash, role, phone, tfn, employer_name, employer_abn, pin, is_active, permissions, rate_weekday, rate_weekend, hour_cap_weekday, hour_cap_weekend, created_at, updated_at`
 
 func scanUser(row *sql.Row) (*User, error) {
 	var u User
-	err := row.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.Phone, &u.TFN, &u.EmployerName, &u.EmployerABN, &u.PIN, &u.IsActive, pq.Array(&u.Permissions), &u.RateWeekday, &u.RateWeekend, &u.CreatedAt, &u.UpdatedAt)
+	err := row.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.Phone, &u.TFN, &u.EmployerName, &u.EmployerABN, &u.PIN, &u.IsActive, pq.Array(&u.Permissions), &u.RateWeekday, &u.RateWeekend, &u.HourCapWeekday, &u.HourCapWeekend, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +213,16 @@ func (r *repository) Update(ctx context.Context, id int64, fields UpdateFields) 
 			return nil, err
 		}
 	}
+	if fields.HourCapWeekday != nil {
+		if _, err := r.db.ExecContext(ctx, `update users set hour_cap_weekday = $1, updated_at = now() where id = $2`, *fields.HourCapWeekday, id); err != nil {
+			return nil, err
+		}
+	}
+	if fields.HourCapWeekend != nil {
+		if _, err := r.db.ExecContext(ctx, `update users set hour_cap_weekend = $1, updated_at = now() where id = $2`, *fields.HourCapWeekend, id); err != nil {
+			return nil, err
+		}
+	}
 
 	row := r.db.QueryRowContext(ctx, `select `+userColumns+` from users where id = $1`, id)
 	return scanUser(row)
@@ -229,7 +243,7 @@ func (r *repository) List(ctx context.Context) ([]*User, error) {
 	var users []*User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.Phone, &u.TFN, &u.EmployerName, &u.EmployerABN, &u.PIN, &u.IsActive, pq.Array(&u.Permissions), &u.RateWeekday, &u.RateWeekend, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.Phone, &u.TFN, &u.EmployerName, &u.EmployerABN, &u.PIN, &u.IsActive, pq.Array(&u.Permissions), &u.RateWeekday, &u.RateWeekend, &u.HourCapWeekday, &u.HourCapWeekend, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, err
 		}
 		users = append(users, &u)

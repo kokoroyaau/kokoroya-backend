@@ -7,6 +7,7 @@ func RegisterRoutes(rg *gin.RouterGroup, controller *Controller, authMW, require
 	labour.GET("/report", controller.GetReport)
 	labour.PUT("/hour-entry", controller.UpsertHourEntry)
 	labour.PUT("/rate", controller.UpsertWeeklyRate)
+	labour.PUT("/pay-split", controller.UpsertPaySplit)
 }
 
 // RegisterSalaryRoutes exposes the same report read-only under /salary,
