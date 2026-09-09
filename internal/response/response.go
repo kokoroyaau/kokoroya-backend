@@ -31,13 +31,25 @@ func AbortErr(c *gin.Context, status int, message string) {
 	c.AbortWithStatusJSON(status, gin.H{"success": false, "error": message})
 }
 
+// duplicateFieldByConstraint maps a Postgres unique constraint/index name to
+// the human field name it protects, so DBErr can report e.g. "email already
+// in use" instead of leaking the raw constraint name to the client.
+var duplicateFieldByConstraint = map[string]string{
+	"users_email_key":  "email",
+	"users_pin_unique": "PIN",
+}
+
 // DBErr writes 409 with a readable message for a unique constraint
 // violation (e.g. duplicate email/pin), otherwise falls back to a generic
 // 500 so unexpected DB errors don't leak internals to the client.
 func DBErr(c *gin.Context, err error) {
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-		Err(c, 409, "already in use: "+pqErr.Constraint)
+		field, ok := duplicateFieldByConstraint[pqErr.Constraint]
+		if !ok {
+			field = "value"
+		}
+		Err(c, 409, field+" already in use")
 		return
 	}
 	Err(c, 500, "internal server error")

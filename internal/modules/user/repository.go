@@ -164,7 +164,14 @@ func (r *repository) Update(ctx context.Context, id int64, fields UpdateFields) 
 		}
 	}
 	if fields.Email != nil {
-		if _, err := r.db.ExecContext(ctx, `update users set email = $1, updated_at = now() where id = $2`, *fields.Email, id); err != nil {
+		// An empty string means "no email" (PIN-only employee) — store NULL,
+		// not "", since email has a unique constraint and multiple employees
+		// with email = "" would collide with each other.
+		var email any
+		if *fields.Email != "" {
+			email = *fields.Email
+		}
+		if _, err := r.db.ExecContext(ctx, `update users set email = $1, updated_at = now() where id = $2`, email, id); err != nil {
 			return nil, err
 		}
 	}
