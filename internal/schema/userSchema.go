@@ -42,7 +42,7 @@ type SetPermissionsRequest struct {
 }
 
 type SetBranchesRequest struct {
-	BranchIDs []int64 `json:"branch_ids" binding:"required"`
+	BranchIDs []int64 `json:"branch_ids"`
 }
 
 type MeResponse struct {
