@@ -25,6 +25,10 @@ func (ctrl *Controller) Punch(c *gin.Context) {
 	}
 
 	result, err := ctrl.service.Punch(c.Request.Context(), req.Pin, c.GetInt64("branchID"))
+	if err == ErrOpenAtOtherBranch {
+		response.Err(c, 409, "already clocked in at another branch")
+		return
+	}
 	if err != nil {
 		response.Err(c, 404, "invalid pin")
 		return

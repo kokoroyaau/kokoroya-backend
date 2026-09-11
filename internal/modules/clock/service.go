@@ -12,6 +12,7 @@ import (
 
 var ErrInvalidPin = errors.New("invalid pin")
 var ErrNotFound = errors.New("time entry not found")
+var ErrOpenAtOtherBranch = errors.New("already clocked in at another branch")
 
 const maxShiftDuration = 16 * time.Hour
 const quarterHour = 15 * time.Minute
@@ -60,6 +61,12 @@ func (s *service) Punch(ctx context.Context, pin string, branchID int64) (*Punch
 			return nil, err
 		}
 		open = nil
+	}
+
+	// A shift left open at a different branch must be closed there, not
+	// silently closed out by a punch at this branch.
+	if open != nil && open.BranchID != branchID {
+		return nil, ErrOpenAtOtherBranch
 	}
 
 	if open != nil {
