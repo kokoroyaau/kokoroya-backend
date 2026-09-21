@@ -18,8 +18,7 @@ var ErrEmailExists = errors.New("email already exists")
 type Service interface {
 	Login(ctx context.Context, email, password string) (token string, expiresAt time.Time, role string, err error)
 	Logout(ctx context.Context, jti string) error
-	// CreateUser: email and password are optional — a PIN-only employee
-	// (empty email/password) can clock in/out but never logs in.
+
 	CreateUser(ctx context.Context, name, email, password, role, phone, tfn, employerName, employerABN, pin string, rateWeekday, rateWeekend *float64, permissions []string, branchIDs []int64) (*User, error)
 	UpdateUser(ctx context.Context, id int64, fields UpdateFields) (*User, error)
 	DeleteUser(ctx context.Context, id int64) error

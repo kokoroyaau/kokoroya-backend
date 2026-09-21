@@ -10,7 +10,6 @@ import (
 	"kokoroya-backend/config"
 )
 
-// NewPostgresConnection opens a connection to Postgres using the given config.
 func NewPostgresConnection(cfg *config.Config, log *logrus.Logger) (*sql.DB, error) {
 	pg := cfg.Postgres
 	dsn := fmt.Sprintf(

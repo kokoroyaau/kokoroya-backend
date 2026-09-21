@@ -138,8 +138,6 @@ func (r *repository) ListShifts(ctx context.Context, branchID int64, from, to ti
 	return shifts, rows.Err()
 }
 
-// UpsertShift deletes the cell when both startTime and code are empty, so
-// clearing a shift in the grid removes the row instead of leaving a blank one.
 func (r *repository) UpsertShift(ctx context.Context, branchID, sectionID, userID int64, date time.Time, startTime, code *string) error {
 	if (startTime == nil || *startTime == "") && (code == nil || *code == "") {
 		_, err := r.db.ExecContext(ctx, `

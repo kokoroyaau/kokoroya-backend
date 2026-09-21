@@ -20,6 +20,8 @@ type Repository interface {
 	Open(ctx context.Context, userID, branchID int64) (*TimeEntry, error)
 	Close(ctx context.Context, id int64) (*TimeEntry, error)
 	Update(ctx context.Context, id int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
+	Create(ctx context.Context, userID, branchID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
+	Delete(ctx context.Context, id int64) error
 }
 
 type repository struct {
@@ -89,4 +91,18 @@ func (r *repository) Update(ctx context.Context, id int64, clockInAt time.Time, 
 		returning `+timeEntryColumns+`
 	`, id, clockInAt, clockOutAt)
 	return scanTimeEntry(row)
+}
+
+func (r *repository) Create(ctx context.Context, userID, branchID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error) {
+	row := r.db.QueryRowContext(ctx, `
+		insert into time_entries (user_id, branch_id, clock_in_at, clock_out_at)
+		values ($1, $2, $3, $4)
+		returning `+timeEntryColumns+`
+	`, userID, branchID, clockInAt, clockOutAt)
+	return scanTimeEntry(row)
+}
+
+func (r *repository) Delete(ctx context.Context, id int64) error {
+	_, err := r.db.ExecContext(ctx, `delete from time_entries where id = $1`, id)
+	return err
 }

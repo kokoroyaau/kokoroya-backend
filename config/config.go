@@ -26,9 +26,6 @@ var envBindings = []string{
 	"owner.password",
 }
 
-// Load reads config.json via viper and unmarshals it into a Config.
-// Values can be overridden by environment variables, e.g. POSTGRES_HOST
-// overrides postgres.host, JWT_SECRET overrides jwt.secret.
 func Load() (*Config, error) {
 	v := viper.New()
 	v.SetConfigName("config")

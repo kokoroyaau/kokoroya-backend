@@ -17,3 +17,9 @@ type UpdateClockEntryRequest struct {
 	ClockInAt  time.Time  `json:"clock_in_at" binding:"required"`
 	ClockOutAt *time.Time `json:"clock_out_at"`
 }
+
+type CreateClockEntryRequest struct {
+	UserID     int64      `json:"user_id" binding:"required"`
+	ClockInAt  time.Time  `json:"clock_in_at" binding:"required"`
+	ClockOutAt *time.Time `json:"clock_out_at"`
+}

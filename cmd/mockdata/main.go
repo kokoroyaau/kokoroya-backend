@@ -1,9 +1,3 @@
-// Command mockdata seeds local test data on top of the owner account: two
-// branches, a staff user with access to both (for the all-branches
-// dashboard) and one scoped to a single branch, plus this week's clock
-// entries, labour hours, and food-cost numbers so the dashboard and
-// clock-entries pages have something to show. Re-running it wipes and
-// re-inserts everything it owns, so it's safe to run repeatedly.
 package main
 
 import (
@@ -20,17 +14,14 @@ import (
 
 const mockPassword = "password123"
 
-// Prefixed distinctly so this never matches a real branch already sitting
-// in the DB — seedBranches looks entries up by exact name before creating
-// them.
 var branchNames = []string{"[Mock] Branch A", "[Mock] Branch B"}
 
 type mockUser struct {
 	name         string
 	email        string
 	pin          string
-	permissions  string // postgres array literal
-	branches     []int  // indexes into branchNames
+	permissions  string
+	branches     []int
 	employerName string
 	employerABN  string
 }
@@ -154,10 +145,6 @@ func clearMockData(db *sql.DB, branchIDs map[string]int64) {
 	}
 }
 
-// seedClockEntries inserts this week's shifts: a closed shift each weekday
-// for both staff at their branch(es), plus one still-open shift today, so
-// the clock-entries edit UI has both a normal row and an "open" row to
-// exercise.
 func seedClockEntries(db *sql.DB, log interface{ Infof(string, ...any) }, branchIDs map[string]int64, userIDs map[string]int64) {
 	multiStaffID := userIDs["multi-staff@kokoroya.test"]
 	branchAStaffID := userIDs["branch-a-staff@kokoroya.test"]
@@ -170,7 +157,7 @@ func seedClockEntries(db *sql.DB, log interface{ Infof(string, ...any) }, branch
 
 	type shift struct {
 		userID, branchID int64
-		day              int // offset from monday
+		day              int
 	}
 	shifts := []shift{
 		{multiStaffID, branchAID, 0},
@@ -184,7 +171,7 @@ func seedClockEntries(db *sql.DB, log interface{ Infof(string, ...any) }, branch
 	hoursByUserDate := make(map[string]float64)
 	for _, s := range shifts {
 		if s.day > int(now.Weekday()+6)%7 {
-			continue // don't seed shifts in the future relative to "today"
+			continue
 		}
 		day := monday.AddDate(0, 0, s.day)
 		clockIn := day.Add(9 * time.Hour)
@@ -199,7 +186,6 @@ func seedClockEntries(db *sql.DB, log interface{ Infof(string, ...any) }, branch
 		hoursByUserDate[key] += roundedHours(clockIn, clockOut)
 	}
 
-	// one open shift today, for the multi-branch staff at Branch A
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 9, 0, 0, 0, now.Location())
 	if _, err := db.Exec(`
 		insert into time_entries (user_id, branch_id, clock_in_at, clock_out_at)
@@ -223,9 +209,6 @@ func seedClockEntries(db *sql.DB, log interface{ Infof(string, ...any) }, branch
 	log.Infof("seeded %d clock entries + 1 open shift", len(shifts))
 }
 
-// seedFoodCost gives both branches a supplier, this week's purchases, and
-// daily gross sales so the dashboard/all-branches page has non-zero
-// numbers.
 func seedFoodCost(db *sql.DB, log interface{ Infof(string, ...any) }, branchIDs map[string]int64) {
 	now := time.Now()
 	monday := now.AddDate(0, 0, -int(now.Weekday()+6)%7)

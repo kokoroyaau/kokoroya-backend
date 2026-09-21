@@ -9,8 +9,6 @@ import (
 
 const dateLayout = "2006-01-02"
 
-// fallbackNetSalesRate divides out 10% GST (net = gross / 1.10) when a
-// branch never set its own weekly net sales rate.
 const fallbackNetSalesRate = 1 / 1.10
 
 type SupplierWeekRow struct {
@@ -52,8 +50,6 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-// netSalesRateResolver resolves the carry-forward weekly net sales rate for
-// any date in the report range, caching one lookup per week touched.
 func (s *service) netSalesRateResolver(ctx context.Context, branchID int64) func(time.Time) (float64, error) {
 	cache := make(map[string]float64)
 	return func(date time.Time) (float64, error) {

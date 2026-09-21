@@ -10,9 +10,6 @@ import (
 
 const dateLayout = "2006-01-02"
 
-// Fallback gross rate (already includes superannuation) used when a branch
-// has never set its own weekly rate, matching the reference project's
-// defaults (33.05 base wage x 1.12 super / 39.66 base wage x 1.12 super).
 const (
 	fallbackWeekdayRate = 37.02
 	fallbackWeekendRate = 44.42
@@ -24,11 +21,6 @@ type ShiftEntryInfo struct {
 	ClockOutAt *time.Time `json:"clock_out_at"`
 }
 
-// PayBreakdown is one payslip line: hours worked in a category (weekday,
-// Saturday, or Sunday), the effective rate for those hours, and the total.
-// Rate is derived as Total/Hours rather than looked up separately, so it
-// stays exact even if the resolved rate varied within the period (e.g. a
-// weekly rate change mid-fortnight) — Total always equals Hours * Rate.
 type PayBreakdown struct {
 	Hours float64 `json:"hours"`
 	Rate  float64 `json:"rate"`
@@ -89,9 +81,6 @@ func NewService(repo Repository, branchRepo branch.Repository) Service {
 	return &service{repo: repo, branchRepo: branchRepo}
 }
 
-// rateForDay resolves the rate to charge for hours worked on date: the
-// employee's own rate if they have one set, otherwise the branch's weekly
-// gross rate, otherwise the hardcoded fallback.
 func rateForDay(date time.Time, weekdayRate, weekendRate *float64, branchWeekdayRate, branchWeekendRate float64) float64 {
 	isWeekend := date.Weekday() == time.Saturday || date.Weekday() == time.Sunday
 
@@ -107,8 +96,6 @@ func rateForDay(date time.Time, weekdayRate, weekendRate *float64, branchWeekday
 	return branchWeekdayRate
 }
 
-// branchRateResolver resolves the carry-forward weekly gross rate for any
-// date in the report range, caching one lookup per week touched.
 func (s *service) branchRateResolver(ctx context.Context, branchID int64) func(time.Time) (weekday, weekend float64, err error) {
 	type rate struct{ weekday, weekend float64 }
 	cache := make(map[string]rate)
@@ -285,16 +272,12 @@ func (s *service) GetReport(ctx context.Context, branchID int64, start, end time
 
 			weekdayPay.Hours += paidWeekday
 			weekdayPay.Total += paidWeekday * weekdayRate
-			// The manual split collapses Saturday/Sunday into one payable
-			// "weekend" bucket, so it's carried on the Saturday breakdown —
-			// Sunday stays untouched (0) and its payslip line hides itself.
+
 			saturdayPay.Hours += paidWeekend
 			saturdayPay.Total += paidWeekend * weekendRate
 			grossPay += paidWeekday*weekdayRate + paidWeekend*weekendRate
 			cashHours += cash
-			// ponytail: cash hours are valued at the weekday rate as a
-			// stand-in — revisit if cash should follow whichever day it
-			// was actually worked on.
+
 			cashAmount += cash * weekdayRate
 		}
 

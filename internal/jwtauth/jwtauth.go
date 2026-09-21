@@ -44,7 +44,6 @@ func (m *Manager) Generate(userID int64, role string) (token string, jti string,
 	return token, jti, expiresAt, err
 }
 
-// Parse verifies a token's signature, issuer, and expiry, returning its subject claims.
 func (m *Manager) Parse(tokenStr string) (userID int64, role string, jti string, err error) {
 	var claims Claims
 	token, err := jwt.ParseWithClaims(tokenStr, &claims, func(t *jwt.Token) (any, error) {

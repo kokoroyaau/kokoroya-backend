@@ -12,7 +12,6 @@ import (
 	"kokoroya-backend/pkg/logger"
 )
 
-// InitializeApp wires config, logger, and database connections into an App.
 func InitializeApp() (*app.App, error) {
 	wire.Build(
 		config.ProviderSet,

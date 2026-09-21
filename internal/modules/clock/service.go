@@ -33,6 +33,8 @@ type PunchResult struct {
 type Service interface {
 	Punch(ctx context.Context, pin string, branchID int64) (*PunchResult, error)
 	UpdateEntry(ctx context.Context, id, branchID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
+	CreateEntry(ctx context.Context, branchID, userID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
+	DeleteEntry(ctx context.Context, id, branchID int64) error
 }
 
 type service struct {
@@ -63,8 +65,6 @@ func (s *service) Punch(ctx context.Context, pin string, branchID int64) (*Punch
 		open = nil
 	}
 
-	// A shift left open at a different branch must be closed there, not
-	// silently closed out by a punch at this branch.
 	if open != nil && open.BranchID != branchID {
 		return nil, ErrOpenAtOtherBranch
 	}
@@ -91,11 +91,6 @@ func (s *service) Punch(ctx context.Context, pin string, branchID int64) (*Punch
 	return &PunchResult{Name: u.Name, Action: "in", At: opened.ClockInAt}, nil
 }
 
-// UpdateEntry corrects a time entry's clock-in/out and recomputes that
-// employee's labour hours for every day touched (both the old and new date,
-// when the edit moves the entry across days) from the raw time entries, so
-// the stored total always matches what's actually on the clock rather than
-// drifting via delta adjustments.
 func (s *service) UpdateEntry(ctx context.Context, id, branchID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error) {
 	old, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -124,9 +119,35 @@ func (s *service) UpdateEntry(ctx context.Context, id, branchID int64, clockInAt
 	return updated, nil
 }
 
-// recomputeDay re-sums the employee's rounded hours for date from the raw
-// time entries and overwrites the stored total, rather than adding a delta,
-// so an edit can't leave the total out of sync with the clock.
+func (s *service) CreateEntry(ctx context.Context, branchID, userID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error) {
+	created, err := s.repo.Create(ctx, userID, branchID, clockInAt, clockOutAt)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.recomputeDay(ctx, branchID, userID, dateutil.DayOf(created.ClockInAt)); err != nil {
+		return nil, err
+	}
+
+	return created, nil
+}
+
+func (s *service) DeleteEntry(ctx context.Context, id, branchID int64) error {
+	old, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if old == nil || old.BranchID != branchID {
+		return ErrNotFound
+	}
+
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	return s.recomputeDay(ctx, branchID, old.UserID, dateutil.DayOf(old.ClockInAt))
+}
+
 func (s *service) recomputeDay(ctx context.Context, branchID, userID int64, date time.Time) error {
 	shifts, err := s.labourRepo.ListShiftEntries(ctx, branchID, date, date)
 	if err != nil {

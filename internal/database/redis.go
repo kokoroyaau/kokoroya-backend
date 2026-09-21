@@ -10,7 +10,6 @@ import (
 	"kokoroya-backend/config"
 )
 
-// NewRedisClient creates a new Redis client using the given config.
 func NewRedisClient(cfg *config.Config, log *logrus.Logger) (*redis.Client, error) {
 	rc := cfg.Redis
 	client := redis.NewClient(&redis.Options{

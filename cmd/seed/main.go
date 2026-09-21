@@ -1,6 +1,3 @@
-// Command seed creates the owner user, idempotently, from OwnerConfig.
-// There is no public register endpoint — this is the only way an owner
-// account comes into existence.
 package main
 
 import (

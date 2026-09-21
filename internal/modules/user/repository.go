@@ -9,7 +9,6 @@ import (
 	"github.com/lib/pq"
 )
 
-// User is a row in the users table.
 type User struct {
 	ID             int64     `json:"id"`
 	Name           string    `json:"name"`
@@ -68,7 +67,6 @@ type repository struct {
 	db *sql.DB
 }
 
-// NewRepository creates a new user Repository.
 func NewRepository(db *sql.DB) Repository {
 	return &repository{db: db}
 }
@@ -84,8 +82,6 @@ func scanUser(row *sql.Row) (*User, error) {
 	return &u, nil
 }
 
-// FindBy looks up a user by whichever field is set on filter (ID takes
-// precedence if both are somehow set).
 func (r *repository) FindBy(ctx context.Context, filter Filter) (*User, error) {
 	switch {
 	case filter.ID != nil:
@@ -164,9 +160,7 @@ func (r *repository) Update(ctx context.Context, id int64, fields UpdateFields) 
 		}
 	}
 	if fields.Email != nil {
-		// An empty string means "no email" (PIN-only employee) — store NULL,
-		// not "", since email has a unique constraint and multiple employees
-		// with email = "" would collide with each other.
+
 		var email any
 		if *fields.Email != "" {
 			email = *fields.Email

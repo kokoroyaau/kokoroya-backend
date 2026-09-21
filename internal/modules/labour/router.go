@@ -10,8 +10,6 @@ func RegisterRoutes(rg *gin.RouterGroup, controller *Controller, authMW, require
 	labour.PUT("/pay-split", controller.UpsertPaySplit)
 }
 
-// RegisterSalaryRoutes exposes the same report read-only under /salary,
-// gated by its own permission key instead of "labour".
 func RegisterSalaryRoutes(rg *gin.RouterGroup, controller *Controller, authMW, requireBranch, requirePerm gin.HandlerFunc) {
 	rg.GET("/salary/report", authMW, requireBranch, requirePerm, controller.GetReport)
 }

@@ -16,7 +16,6 @@ import (
 	"kokoroya-backend/internal/session"
 )
 
-// RoleOwner is the role that bypasses per-page permission checks entirely.
 const RoleOwner = "owner"
 
 var Pages = []string{
@@ -24,20 +23,14 @@ var Pages = []string{
 	"employee", "clock-in", "schedule", "salary",
 }
 
-// Logger logs each request through log, so request logs land in the same
-// place (format, output) as the rest of the app's logs.
 func Logger(log *logrus.Logger) gin.HandlerFunc {
 	return gin.LoggerWithWriter(log.Writer())
 }
 
-// Recovery recovers from panics, logs them via log, and returns a 500
-// instead of crashing.
 func Recovery(log *logrus.Logger) gin.HandlerFunc {
 	return gin.RecoveryWithWriter(log.Writer())
 }
 
-// CORS allows any origin. Tighten to an explicit allowlist once a real
-// frontend origin is known.
 func CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
@@ -72,7 +65,6 @@ func RequireAuth(jwtManager *jwtauth.Manager, sessionManager *session.Manager) g
 	}
 }
 
-// RequireRole allows only callers whose role matches exactly.
 func RequireRole(role string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.GetString("role") != role {
@@ -83,15 +75,8 @@ func RequireRole(role string) gin.HandlerFunc {
 	}
 }
 
-// PermissionLookup fetches a user's current page permissions, e.g.
-// user.Repository.FindByID(...).Permissions.
 type PermissionLookup func(ctx context.Context, userID int64) ([]string, error)
 
-// RequirePermission allows the owner unconditionally, and otherwise allows
-// only callers whose current permissions (looked up fresh, not from the
-// JWT) include page. Fetching fresh means an owner revoking a permission
-// takes effect on the very next request, without needing the user to log
-// in again.
 func RequirePermission(page string, lookup PermissionLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.GetString("role") == RoleOwner {

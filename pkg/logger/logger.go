@@ -8,7 +8,6 @@ import (
 	"kokoroya-backend/config"
 )
 
-// New creates a configured logrus logger instance from the app config.
 func New(cfg *config.Config) *logrus.Logger {
 	log := logrus.New()
 	log.SetOutput(os.Stdout)
