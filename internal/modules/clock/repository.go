@@ -17,7 +17,7 @@ type TimeEntry struct {
 type Repository interface {
 	FindOpenByUser(ctx context.Context, userID int64) (*TimeEntry, error)
 	FindByID(ctx context.Context, id int64) (*TimeEntry, error)
-	Open(ctx context.Context, userID, branchID int64) (*TimeEntry, error)
+	Open(ctx context.Context, userID, branchID int64, clockInAt time.Time) (*TimeEntry, error)
 	Close(ctx context.Context, id int64) (*TimeEntry, error)
 	Update(ctx context.Context, id int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
 	Create(ctx context.Context, userID, branchID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
@@ -57,12 +57,12 @@ func (r *repository) FindOpenByUser(ctx context.Context, userID int64) (*TimeEnt
 	return e, nil
 }
 
-func (r *repository) Open(ctx context.Context, userID, branchID int64) (*TimeEntry, error) {
+func (r *repository) Open(ctx context.Context, userID, branchID int64, clockInAt time.Time) (*TimeEntry, error) {
 	row := r.db.QueryRowContext(ctx, `
 		insert into time_entries (user_id, branch_id, clock_in_at)
-		values ($1, $2, now())
+		values ($1, $2, $3)
 		returning `+timeEntryColumns+`
-	`, userID, branchID)
+	`, userID, branchID, clockInAt)
 	return scanTimeEntry(row)
 }
 

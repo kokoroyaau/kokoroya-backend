@@ -16,11 +16,23 @@ var ErrOpenAtOtherBranch = errors.New("already clocked in at another branch")
 
 const maxShiftDuration = 16 * time.Hour
 const quarterHour = 15 * time.Minute
+const graceLateness = 3 * time.Minute
 
 func roundedHours(in, out time.Time) float64 {
 	d := out.Sub(in)
 	rounded := (d + quarterHour/2) / quarterHour * quarterHour
 	return rounded.Hours()
+}
+
+// snapClockIn rounds a clock-in time to the 15-minute grid: within the first
+// graceLateness minutes of a block it snaps down (on time), otherwise it
+// snaps up to the next block (counted as late).
+func snapClockIn(t time.Time) time.Time {
+	floor := t.Truncate(quarterHour)
+	if t.Sub(floor) <= graceLateness {
+		return floor
+	}
+	return floor.Add(quarterHour)
 }
 
 type PunchResult struct {
@@ -84,7 +96,7 @@ func (s *service) Punch(ctx context.Context, pin string, branchID int64) (*Punch
 		return &PunchResult{Name: u.Name, Action: "out", At: *closed.ClockOutAt, Hours: &hours}, nil
 	}
 
-	opened, err := s.repo.Open(ctx, u.ID, branchID)
+	opened, err := s.repo.Open(ctx, u.ID, branchID, snapClockIn(time.Now()))
 	if err != nil {
 		return nil, err
 	}
