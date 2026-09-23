@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"kokoroya-backend/internal/dateutil"
 )
 
 type HourEntry struct {
@@ -67,11 +69,13 @@ func (r *repository) ListHourEntries(ctx context.Context, branchID int64, from, 
 }
 
 func (r *repository) ListShiftEntries(ctx context.Context, branchID int64, from, to time.Time) ([]*ShiftEntry, error) {
+	rangeStart := dateutil.DayOf(from)
+	rangeEnd := dateutil.DayOf(to).AddDate(0, 0, 1)
 	rows, err := r.db.QueryContext(ctx, `
 		select id, user_id, clock_in_at, clock_out_at from time_entries
 		where branch_id = $1 and clock_in_at >= $2 and clock_in_at < $3
 		order by clock_in_at
-	`, branchID, from, to.AddDate(0, 0, 1))
+	`, branchID, rangeStart, rangeEnd)
 	if err != nil {
 		return nil, err
 	}
