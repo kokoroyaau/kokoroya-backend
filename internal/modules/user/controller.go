@@ -90,7 +90,12 @@ func (ctrl *Controller) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	u, err := ctrl.service.UpdateUser(c.Request.Context(), id, UpdateFields{
+	var password string
+	if req.Password != nil {
+		password = *req.Password
+	}
+
+	u, err := ctrl.service.UpdateUser(c.Request.Context(), id, password, UpdateFields{
 		Name:           req.Name,
 		Email:          req.Email,
 		Phone:          req.Phone,
@@ -110,6 +115,25 @@ func (ctrl *Controller) UpdateUser(c *gin.Context) {
 		return
 	}
 	response.OK(c, 200, u)
+}
+
+func (ctrl *Controller) ChangePassword(c *gin.Context) {
+	var req schema.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Err(c, 400, err.Error())
+		return
+	}
+
+	err := ctrl.service.ChangePassword(c.Request.Context(), c.GetInt64("userID"), req.CurrentPassword, req.NewPassword)
+	if errors.Is(err, ErrInvalidCredentials) {
+		response.Err(c, 401, "Current password is incorrect")
+		return
+	}
+	if err != nil {
+		response.Err(c, 500, "internal server error")
+		return
+	}
+	response.NoContent(c)
 }
 
 func (ctrl *Controller) DeleteUser(c *gin.Context) {

@@ -16,6 +16,7 @@ func RegisterRoutes(rg *gin.RouterGroup, controller *Controller, authMW, require
 	auth.POST("/logout", authMW, controller.Logout)
 
 	rg.GET("/me", authMW, controller.Me)
+	rg.PATCH("/me/password", authMW, controller.ChangePassword)
 	rg.GET("/permissions", authMW, controller.Permissions)
 
 	users := rg.Group("/users", authMW, requireEmployee)

@@ -21,6 +21,7 @@ type CreateUserRequest struct {
 type UpdateUserRequest struct {
 	Name           *string  `json:"name"`
 	Email          *string  `json:"email"`
+	Password       *string  `json:"password" binding:"omitempty,min=8"`
 	Phone          *string  `json:"phone"`
 	TFN            *string  `json:"tfn"`
 	EmployerName   *string  `json:"employer_name"`
@@ -32,6 +33,11 @@ type UpdateUserRequest struct {
 	RateWeekend    *float64 `json:"rate_weekend" binding:"omitempty,min=0"`
 	HourCapWeekday *float64 `json:"hour_cap_weekday" binding:"omitempty,min=0"`
 	HourCapWeekend *float64 `json:"hour_cap_weekend" binding:"omitempty,min=0"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=8"`
 }
 
 type SetPermissionsRequest struct {

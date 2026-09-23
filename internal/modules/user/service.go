@@ -20,7 +20,8 @@ type Service interface {
 	Logout(ctx context.Context, jti string) error
 
 	CreateUser(ctx context.Context, name, email, password, role, phone, tfn, employerName, employerABN, pin string, rateWeekday, rateWeekend *float64, permissions []string, branchIDs []int64) (*User, error)
-	UpdateUser(ctx context.Context, id int64, fields UpdateFields) (*User, error)
+	UpdateUser(ctx context.Context, id int64, password string, fields UpdateFields) (*User, error)
+	ChangePassword(ctx context.Context, userID int64, currentPassword, newPassword string) error
 	DeleteUser(ctx context.Context, id int64) error
 	SetPermissions(ctx context.Context, userID int64, permissions []string) error
 	SetBranches(ctx context.Context, userID int64, branchIDs []int64) error
@@ -126,13 +127,49 @@ func (s *service) CreateUser(ctx context.Context, name, email, password, role, p
 	return u, nil
 }
 
-func (s *service) UpdateUser(ctx context.Context, id int64, fields UpdateFields) (*User, error) {
+func (s *service) UpdateUser(ctx context.Context, id int64, password string, fields UpdateFields) (*User, error) {
+	if password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			s.log.WithError(err).WithField("user_id", id).Error("user.UpdateUser: bcrypt hash failed")
+			return nil, err
+		}
+		hashStr := string(hash)
+		fields.PasswordHash = &hashStr
+	}
+
 	u, err := s.repo.Update(ctx, id, fields)
 	if err != nil {
 		s.log.WithError(err).WithField("user_id", id).Error("user.UpdateUser: repo update failed")
 		return nil, err
 	}
 	return u, nil
+}
+
+func (s *service) ChangePassword(ctx context.Context, userID int64, currentPassword, newPassword string) error {
+	u, err := s.repo.FindBy(ctx, Filter{ID: &userID})
+	if err != nil {
+		s.log.WithError(err).WithField("user_id", userID).Error("user.ChangePassword: repo query failed")
+		return err
+	}
+	if u.PasswordHash == nil {
+		return ErrInvalidCredentials
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(*u.PasswordHash), []byte(currentPassword)); err != nil {
+		return ErrInvalidCredentials
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		s.log.WithError(err).WithField("user_id", userID).Error("user.ChangePassword: bcrypt hash failed")
+		return err
+	}
+	hashStr := string(hash)
+	if _, err := s.repo.Update(ctx, userID, UpdateFields{PasswordHash: &hashStr}); err != nil {
+		s.log.WithError(err).WithField("user_id", userID).Error("user.ChangePassword: repo update failed")
+		return err
+	}
+	return nil
 }
 
 func (s *service) DeleteUser(ctx context.Context, id int64) error {

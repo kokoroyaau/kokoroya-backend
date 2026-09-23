@@ -51,6 +51,7 @@ type UpdateFields struct {
 	RateWeekend    *float64
 	HourCapWeekday *float64
 	HourCapWeekend *float64
+	PasswordHash   *string
 }
 
 type Repository interface {
@@ -221,6 +222,11 @@ func (r *repository) Update(ctx context.Context, id int64, fields UpdateFields) 
 	}
 	if fields.HourCapWeekend != nil {
 		if _, err := r.db.ExecContext(ctx, `update users set hour_cap_weekend = $1, updated_at = now() where id = $2`, *fields.HourCapWeekend, id); err != nil {
+			return nil, err
+		}
+	}
+	if fields.PasswordHash != nil {
+		if _, err := r.db.ExecContext(ctx, `update users set password_hash = $1, updated_at = now() where id = $2`, *fields.PasswordHash, id); err != nil {
 			return nil, err
 		}
 	}
