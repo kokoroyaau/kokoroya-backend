@@ -56,9 +56,9 @@ type PunchResult struct {
 
 type Service interface {
 	Punch(ctx context.Context, pin string, branchID int64) (*PunchResult, error)
-	UpdateEntry(ctx context.Context, id, branchID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
-	CreateEntry(ctx context.Context, branchID, userID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
-	DeleteEntry(ctx context.Context, id, branchID int64) error
+	UpdateEntry(ctx context.Context, id, branchID, actorUserID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
+	CreateEntry(ctx context.Context, branchID, userID, actorUserID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
+	DeleteEntry(ctx context.Context, id, branchID, actorUserID int64) error
 }
 
 type service struct {
@@ -81,25 +81,34 @@ func NewService(repo Repository, userRepo user.Repository, labourRepo labour.Rep
 	}
 }
 
-func (s *service) notifyEntryChange(name, action, detail string) {
+func (s *service) describeUser(ctx context.Context, userID int64, preferEmail bool) string {
+	u, err := s.userRepo.FindBy(ctx, user.Filter{ID: &userID})
+	if err != nil || u == nil {
+		return fmt.Sprintf("user #%d", userID)
+	}
+	if preferEmail && u.Email != nil && *u.Email != "" {
+		return *u.Email
+	}
+	return u.Name
+}
+
+func (s *service) notifyEdit(ctx context.Context, actorUserID, employeeUserID int64, action, detail string) {
 	if s.notifyEmail == "" {
 		return
 	}
-	subject := fmt.Sprintf("Clock entry %s - %s", action, name)
-	body := fmt.Sprintf("<p><strong>%s</strong> - %s</p><p>%s</p>", name, action, detail)
+	actor := s.describeUser(ctx, actorUserID, true)
+	employee := s.describeUser(ctx, employeeUserID, false)
+
+	subject := fmt.Sprintf("Clock entry %s - %s", action, employee)
+	body := fmt.Sprintf(
+		"<p><strong>%s</strong> is editing %s's clock entry (%s).</p><p>%s</p>",
+		actor, employee, action, detail,
+	)
 	go func() {
 		if err := s.emailService.Send(context.Background(), s.notifyEmail, subject, body); err != nil {
 			s.log.WithError(err).Warn("clock: failed to send owner notification email")
 		}
 	}()
-}
-
-func (s *service) notifyEntryChangeByUserID(ctx context.Context, userID int64, action, detail string) {
-	name := fmt.Sprintf("user #%d", userID)
-	if u, err := s.userRepo.FindBy(ctx, user.Filter{ID: &userID}); err == nil && u != nil {
-		name = u.Name
-	}
-	s.notifyEntryChange(name, action, detail)
 }
 
 func (s *service) Punch(ctx context.Context, pin string, branchID int64) (*PunchResult, error) {
@@ -136,7 +145,6 @@ func (s *service) Punch(ctx context.Context, pin string, branchID int64) (*Punch
 			return nil, err
 		}
 
-		s.notifyEntryChange(u.Name, "clocked out", fmt.Sprintf("Clock out at %s", closed.ClockOutAt.Format(time.RFC1123)))
 		return &PunchResult{Name: u.Name, Action: "out", At: *closed.ClockOutAt, Hours: &hours}, nil
 	}
 
@@ -144,11 +152,10 @@ func (s *service) Punch(ctx context.Context, pin string, branchID int64) (*Punch
 	if err != nil {
 		return nil, err
 	}
-	s.notifyEntryChange(u.Name, "clocked in", fmt.Sprintf("Clock in at %s", opened.ClockInAt.Format(time.RFC1123)))
 	return &PunchResult{Name: u.Name, Action: "in", At: opened.ClockInAt}, nil
 }
 
-func (s *service) UpdateEntry(ctx context.Context, id, branchID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error) {
+func (s *service) UpdateEntry(ctx context.Context, id, branchID, actorUserID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error) {
 	old, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -173,7 +180,7 @@ func (s *service) UpdateEntry(ctx context.Context, id, branchID int64, clockInAt
 		}
 	}
 
-	s.notifyEntryChangeByUserID(ctx, updated.UserID, "entry updated", fmt.Sprintf(
+	s.notifyEdit(ctx, actorUserID, updated.UserID, "entry updated", fmt.Sprintf(
 		"Clock in %s, clock out %s",
 		updated.ClockInAt.Format(time.RFC1123),
 		formatOptionalTime(updated.ClockOutAt),
@@ -181,7 +188,7 @@ func (s *service) UpdateEntry(ctx context.Context, id, branchID int64, clockInAt
 	return updated, nil
 }
 
-func (s *service) CreateEntry(ctx context.Context, branchID, userID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error) {
+func (s *service) CreateEntry(ctx context.Context, branchID, userID, actorUserID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error) {
 	created, err := s.repo.Create(ctx, userID, branchID, clockInAt, clockOutAt)
 	if err != nil {
 		return nil, err
@@ -191,7 +198,7 @@ func (s *service) CreateEntry(ctx context.Context, branchID, userID int64, clock
 		return nil, err
 	}
 
-	s.notifyEntryChangeByUserID(ctx, userID, "entry added", fmt.Sprintf(
+	s.notifyEdit(ctx, actorUserID, userID, "entry added", fmt.Sprintf(
 		"Clock in %s, clock out %s",
 		created.ClockInAt.Format(time.RFC1123),
 		formatOptionalTime(created.ClockOutAt),
@@ -199,7 +206,7 @@ func (s *service) CreateEntry(ctx context.Context, branchID, userID int64, clock
 	return created, nil
 }
 
-func (s *service) DeleteEntry(ctx context.Context, id, branchID int64) error {
+func (s *service) DeleteEntry(ctx context.Context, id, branchID, actorUserID int64) error {
 	old, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -216,7 +223,7 @@ func (s *service) DeleteEntry(ctx context.Context, id, branchID int64) error {
 		return err
 	}
 
-	s.notifyEntryChangeByUserID(ctx, old.UserID, "entry deleted", fmt.Sprintf(
+	s.notifyEdit(ctx, actorUserID, old.UserID, "entry deleted", fmt.Sprintf(
 		"Clock in %s, clock out %s",
 		old.ClockInAt.Format(time.RFC1123),
 		formatOptionalTime(old.ClockOutAt),

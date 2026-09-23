@@ -59,7 +59,7 @@ func (ctrl *Controller) UpdateEntry(c *gin.Context) {
 		return
 	}
 
-	entry, err := ctrl.service.UpdateEntry(c.Request.Context(), id, c.GetInt64("branchID"), req.ClockInAt, req.ClockOutAt)
+	entry, err := ctrl.service.UpdateEntry(c.Request.Context(), id, c.GetInt64("branchID"), c.GetInt64("userID"), req.ClockInAt, req.ClockOutAt)
 	if err == ErrNotFound {
 		response.Err(c, 404, "time entry not found")
 		return
@@ -82,7 +82,7 @@ func (ctrl *Controller) CreateEntry(c *gin.Context) {
 		return
 	}
 
-	entry, err := ctrl.service.CreateEntry(c.Request.Context(), c.GetInt64("branchID"), req.UserID, req.ClockInAt, req.ClockOutAt)
+	entry, err := ctrl.service.CreateEntry(c.Request.Context(), c.GetInt64("branchID"), req.UserID, c.GetInt64("userID"), req.ClockInAt, req.ClockOutAt)
 	if err != nil {
 		response.Err(c, 500, "internal server error")
 		return
@@ -97,7 +97,7 @@ func (ctrl *Controller) DeleteEntry(c *gin.Context) {
 		return
 	}
 
-	err = ctrl.service.DeleteEntry(c.Request.Context(), id, c.GetInt64("branchID"))
+	err = ctrl.service.DeleteEntry(c.Request.Context(), id, c.GetInt64("branchID"), c.GetInt64("userID"))
 	if err == ErrNotFound {
 		response.Err(c, 404, "time entry not found")
 		return
