@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"kokoroya-backend/config"
+	"kokoroya-backend/internal/email"
 	"kokoroya-backend/internal/jwtauth"
 	"kokoroya-backend/internal/middleware"
 	"kokoroya-backend/internal/modules/branch"
@@ -22,7 +23,7 @@ import (
 	"kokoroya-backend/internal/session"
 )
 
-func New(db *sql.DB, rdb *redis.Client, cfg *config.Config, log *logrus.Logger) *gin.Engine {
+func New(db *sql.DB, rdb *redis.Client, cfg *config.Config, log *logrus.Logger, emailService email.Service) *gin.Engine {
 	engine := gin.New()
 	engine.Use(middleware.Logger(log), middleware.Recovery(log), middleware.CORS())
 
@@ -44,7 +45,7 @@ func New(db *sql.DB, rdb *redis.Client, cfg *config.Config, log *logrus.Logger) 
 	labourService := labour.NewService(labourRepo, branchRepo)
 	labourController := labour.NewController(labourService)
 	clockRepo := clock.NewRepository(db)
-	clockService := clock.NewService(clockRepo, userRepo, labourRepo)
+	clockService := clock.NewService(clockRepo, userRepo, labourRepo, emailService, cfg.Email.NotifyEmail, log)
 	clockController := clock.NewController(clockService)
 	foodCostRepo := foodcost.NewRepository(db)
 	foodCostService := foodcost.NewService(foodCostRepo)

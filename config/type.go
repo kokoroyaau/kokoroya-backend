@@ -45,4 +45,5 @@ type EmailConfig struct {
 	ResendAPIKey string `mapstructure:"resend_api_key"`
 	FromAddress  string `mapstructure:"from_address"`
 	FromName     string `mapstructure:"from_name"`
+	NotifyEmail  string `mapstructure:"notify_email"`
 }

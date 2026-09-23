@@ -12,7 +12,7 @@ func main() {
 
 	a.Logger.Infof("%s starting on port %s (env=%s)", a.Config.App.Name, a.Config.App.Port, a.Config.App.Env)
 
-	engine := router.New(a.DB, a.Redis, a.Config, a.Logger)
+	engine := router.New(a.DB, a.Redis, a.Config, a.Logger, a.Email)
 	if err := engine.Run(":" + a.Config.App.Port); err != nil {
 		a.Logger.Fatal(err)
 	}

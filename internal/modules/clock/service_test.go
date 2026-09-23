@@ -25,3 +25,25 @@ func TestSnapClockIn(t *testing.T) {
 		}
 	}
 }
+
+func TestSnapClockOut(t *testing.T) {
+	base := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		clockIn time.Duration
+		out     time.Duration
+		want    time.Duration
+	}{
+		{0, 0, 0},                               // 12:00 -> 12:00
+		{0, 8 * time.Minute, 0},                 // 12:08 -> 12:00
+		{0, 14 * time.Minute, 0},                // 12:14 -> 12:00
+		{0, 15 * time.Minute, 15 * time.Minute}, // 12:15 -> 12:15
+		{15 * time.Minute, 15*time.Minute + 8*time.Second, 15 * time.Minute}, // clocked in at 12:15, out 8s later must not go below 12:15
+	}
+	for _, c := range cases {
+		got := snapClockOut(base.Add(c.out), base.Add(c.clockIn))
+		want := base.Add(c.want)
+		if !got.Equal(want) {
+			t.Errorf("snapClockOut(+%v, clockIn=+%v) = %v, want %v", c.out, c.clockIn, got, want)
+		}
+	}
+}

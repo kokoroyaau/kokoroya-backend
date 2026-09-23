@@ -27,6 +27,7 @@ var envBindings = []string{
 	"email.resend_api_key",
 	"email.from_address",
 	"email.from_name",
+	"email.notify_email",
 }
 
 func Load() (*Config, error) {

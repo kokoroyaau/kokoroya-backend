@@ -18,7 +18,7 @@ type Repository interface {
 	FindOpenByUser(ctx context.Context, userID int64) (*TimeEntry, error)
 	FindByID(ctx context.Context, id int64) (*TimeEntry, error)
 	Open(ctx context.Context, userID, branchID int64, clockInAt time.Time) (*TimeEntry, error)
-	Close(ctx context.Context, id int64) (*TimeEntry, error)
+	Close(ctx context.Context, id int64, clockOutAt time.Time) (*TimeEntry, error)
 	Update(ctx context.Context, id int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
 	Create(ctx context.Context, userID, branchID int64, clockInAt time.Time, clockOutAt *time.Time) (*TimeEntry, error)
 	Delete(ctx context.Context, id int64) error
@@ -66,11 +66,11 @@ func (r *repository) Open(ctx context.Context, userID, branchID int64, clockInAt
 	return scanTimeEntry(row)
 }
 
-func (r *repository) Close(ctx context.Context, id int64) (*TimeEntry, error) {
+func (r *repository) Close(ctx context.Context, id int64, clockOutAt time.Time) (*TimeEntry, error) {
 	row := r.db.QueryRowContext(ctx, `
-		update time_entries set clock_out_at = now() where id = $1
+		update time_entries set clock_out_at = $2 where id = $1
 		returning `+timeEntryColumns+`
-	`, id)
+	`, id, clockOutAt)
 	return scanTimeEntry(row)
 }
 
