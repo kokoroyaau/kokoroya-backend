@@ -6,6 +6,7 @@ type Config struct {
 	Redis    RedisConfig    `mapstructure:"redis"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
 	Owner    OwnerConfig    `mapstructure:"owner"`
+	Email    EmailConfig    `mapstructure:"email"`
 }
 
 type AppConfig struct {
@@ -38,4 +39,10 @@ type JWTConfig struct {
 type OwnerConfig struct {
 	Email    string `mapstructure:"email"`
 	Password string `mapstructure:"password"`
+}
+
+type EmailConfig struct {
+	ResendAPIKey string `mapstructure:"resend_api_key"`
+	FromAddress  string `mapstructure:"from_address"`
+	FromName     string `mapstructure:"from_name"`
 }

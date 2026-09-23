@@ -24,6 +24,9 @@ var envBindings = []string{
 	"jwt.access_ttl_min",
 	"owner.email",
 	"owner.password",
+	"email.resend_api_key",
+	"email.from_address",
+	"email.from_name",
 }
 
 func Load() (*Config, error) {

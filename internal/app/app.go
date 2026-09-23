@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"kokoroya-backend/config"
+	"kokoroya-backend/internal/email"
 )
 
 type App struct {
@@ -14,13 +15,15 @@ type App struct {
 	Logger *logrus.Logger
 	DB     *sql.DB
 	Redis  *redis.Client
+	Email  email.Service
 }
 
-func NewApp(cfg *config.Config, log *logrus.Logger, db *sql.DB, rdb *redis.Client) *App {
+func NewApp(cfg *config.Config, log *logrus.Logger, db *sql.DB, rdb *redis.Client, emailService email.Service) *App {
 	return &App{
 		Config: cfg,
 		Logger: log,
 		DB:     db,
 		Redis:  rdb,
+		Email:  emailService,
 	}
 }

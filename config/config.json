@@ -25,5 +25,10 @@
   "owner": {
     "email": "owner@gmail.com",
     "password": "asdf1234"
+  },
+  "email": {
+    "resend_api_key": "",
+    "from_address": "no-reply@kokoroya.com",
+    "from_name": "Kokoroya"
   }
 }
