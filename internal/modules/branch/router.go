@@ -19,7 +19,7 @@ func RegisterRoutes(rg *gin.RouterGroup, controller *Controller, authMW, require
 	branchesRead.GET("", controller.List)
 	branchesRead.GET("/:id/employees", controller.Employees)
 
-	branchesManage := rg.Group("/branches", authMW, middleware.RequireRole(middleware.RoleOwner))
+	branchesManage := rg.Group("/branches", authMW, middleware.RequirePrivileged())
 	branchesManage.POST("", controller.Create)
 	branchesManage.PATCH("/:id", controller.Update)
 	branchesManage.DELETE("/:id", controller.Delete)

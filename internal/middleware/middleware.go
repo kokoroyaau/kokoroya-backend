@@ -13,10 +13,9 @@ import (
 	"kokoroya-backend/internal/authcheck"
 	"kokoroya-backend/internal/jwtauth"
 	"kokoroya-backend/internal/response"
+	"kokoroya-backend/internal/role"
 	"kokoroya-backend/internal/session"
 )
-
-const RoleOwner = "owner"
 
 var Pages = []string{
 	"dashboard", "labour", "food-cost",
@@ -65,9 +64,19 @@ func RequireAuth(jwtManager *jwtauth.Manager, sessionManager *session.Manager) g
 	}
 }
 
-func RequireRole(role string) gin.HandlerFunc {
+func RequireRole(r string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.GetString("role") != role {
+		if c.GetString("role") != r {
+			response.AbortErr(c, 403, "forbidden")
+			return
+		}
+		c.Next()
+	}
+}
+
+func RequirePrivileged() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !role.IsPrivileged(c.GetString("role")) {
 			response.AbortErr(c, 403, "forbidden")
 			return
 		}
@@ -79,7 +88,7 @@ type PermissionLookup func(ctx context.Context, userID int64) ([]string, error)
 
 func RequirePermission(page string, lookup PermissionLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.GetString("role") == RoleOwner {
+		if role.IsPrivileged(c.GetString("role")) {
 			c.Next()
 			return
 		}
@@ -103,7 +112,7 @@ func RequireBranchAccess(lookup BranchAccessLookup) gin.HandlerFunc {
 			return
 		}
 
-		if c.GetString("role") == RoleOwner {
+		if role.IsPrivileged(c.GetString("role")) {
 			c.Set("branchID", branchID)
 			c.Next()
 			return

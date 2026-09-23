@@ -3,8 +3,8 @@ package branch
 import (
 	"github.com/gin-gonic/gin"
 
-	"kokoroya-backend/internal/middleware"
 	"kokoroya-backend/internal/response"
+	"kokoroya-backend/internal/role"
 	"kokoroya-backend/internal/schema"
 )
 
@@ -22,7 +22,7 @@ func (ctrl *Controller) ListMine(c *gin.Context) {
 		err      error
 	)
 
-	if c.GetString("role") == middleware.RoleOwner {
+	if role.IsPrivileged(c.GetString("role")) {
 		branches, err = ctrl.service.List(c.Request.Context())
 	} else {
 		branches, err = ctrl.service.ListForUser(c.Request.Context(), c.GetInt64("userID"))
