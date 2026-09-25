@@ -28,7 +28,7 @@
   },
   "email": {
     "resend_api_key": "",
-    "from_address": "no-reply@kokoroya.com",
+    "from_address": "no-reply@kokoroyaau.com",
     "from_name": "Kokoroya",
     "notify_email": "kokoroyaau@gmail.com"
   }

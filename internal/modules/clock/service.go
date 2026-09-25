@@ -92,17 +92,74 @@ func (s *service) describeUser(ctx context.Context, userID int64, preferEmail bo
 	return u.Name
 }
 
-func (s *service) notifyEdit(ctx context.Context, actorUserID, employeeUserID int64, action, detail string) {
+var wibLocation = mustLoadLocation("Asia/Jakarta")
+
+func mustLoadLocation(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		panic(err)
+	}
+	return loc
+}
+
+func formatWIB(t time.Time) string {
+	return t.In(wibLocation).Format("Monday, 2 January 2006 — 15:04 WIB")
+}
+
+func formatDuration(clockInAt time.Time, clockOutAt *time.Time) string {
+	if clockOutAt == nil {
+		return "-"
+	}
+	hours := clockOutAt.Sub(clockInAt).Hours()
+	if hours == float64(int64(hours)) {
+		return fmt.Sprintf("%d hours", int64(hours))
+	}
+	return fmt.Sprintf("%.2f hours", hours)
+}
+
+// timeField renders a Clock In/Clock Out line, showing a From/To diff when
+// prev is non-nil and differs from the new value.
+func timeField(label string, t, prev *time.Time) string {
+	format := func(t *time.Time) string {
+		if t == nil {
+			return "(open)"
+		}
+		return formatWIB(*t)
+	}
+
+	if prev != nil && format(prev) != format(t) {
+		return fmt.Sprintf(
+			"<p><strong>%s:</strong><br>From: %s<br>To: %s</p>",
+			label, format(prev), format(t),
+		)
+	}
+	return fmt.Sprintf("<p><strong>%s:</strong><br>%s</p>", label, format(t))
+}
+
+func (s *service) notifyEdit(ctx context.Context, actorUserID, employeeUserID int64, action string, clockInAt time.Time, clockOutAt *time.Time, prev *TimeEntry) {
 	if s.notifyEmail == "" {
 		return
 	}
 	actor := s.describeUser(ctx, actorUserID, true)
 	employee := s.describeUser(ctx, employeeUserID, false)
 
-	subject := fmt.Sprintf("Clock entry %s - %s", action, employee)
+	var prevClockInAt, prevClockOutAt *time.Time
+	if prev != nil {
+		prevClockInAt, prevClockOutAt = &prev.ClockInAt, prev.ClockOutAt
+	}
+
+	subject := fmt.Sprintf("Clock Entry Update - %s", employee)
 	body := fmt.Sprintf(
-		"<p><strong>%s</strong> is editing %s's clock entry (%s).</p><p>%s</p>",
-		actor, employee, action, detail,
+		"<h2>Clock Entry Update</h2>"+
+			"<p><strong>Edited by:</strong> %s</p>"+
+			"<p><strong>Employee:</strong> %s</p>"+
+			"<p><strong>Action:</strong> %s</p>"+
+			"%s%s"+
+			"<p><strong>Total Duration:</strong> %s</p>",
+		actor, employee, action,
+		timeField("Clock In", &clockInAt, prevClockInAt),
+		timeField("Clock Out", clockOutAt, prevClockOutAt),
+		formatDuration(clockInAt, clockOutAt),
 	)
 	go func() {
 		if err := s.emailService.Send(context.Background(), s.notifyEmail, subject, body); err != nil {
@@ -180,11 +237,7 @@ func (s *service) UpdateEntry(ctx context.Context, id, branchID, actorUserID int
 		}
 	}
 
-	s.notifyEdit(ctx, actorUserID, updated.UserID, "entry updated", fmt.Sprintf(
-		"Clock in %s, clock out %s",
-		updated.ClockInAt.Format(time.RFC1123),
-		formatOptionalTime(updated.ClockOutAt),
-	))
+	s.notifyEdit(ctx, actorUserID, updated.UserID, "Entry updated", updated.ClockInAt, updated.ClockOutAt, old)
 	return updated, nil
 }
 
@@ -198,11 +251,7 @@ func (s *service) CreateEntry(ctx context.Context, branchID, userID, actorUserID
 		return nil, err
 	}
 
-	s.notifyEdit(ctx, actorUserID, userID, "entry added", fmt.Sprintf(
-		"Clock in %s, clock out %s",
-		created.ClockInAt.Format(time.RFC1123),
-		formatOptionalTime(created.ClockOutAt),
-	))
+	s.notifyEdit(ctx, actorUserID, userID, "Entry added", created.ClockInAt, created.ClockOutAt, nil)
 	return created, nil
 }
 
@@ -223,19 +272,8 @@ func (s *service) DeleteEntry(ctx context.Context, id, branchID, actorUserID int
 		return err
 	}
 
-	s.notifyEdit(ctx, actorUserID, old.UserID, "entry deleted", fmt.Sprintf(
-		"Clock in %s, clock out %s",
-		old.ClockInAt.Format(time.RFC1123),
-		formatOptionalTime(old.ClockOutAt),
-	))
+	s.notifyEdit(ctx, actorUserID, old.UserID, "Entry deleted", old.ClockInAt, old.ClockOutAt, nil)
 	return nil
-}
-
-func formatOptionalTime(t *time.Time) string {
-	if t == nil {
-		return "(open)"
-	}
-	return t.Format(time.RFC1123)
 }
 
 func (s *service) recomputeDay(ctx context.Context, branchID, userID int64, date time.Time) error {
