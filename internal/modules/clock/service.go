@@ -92,18 +92,8 @@ func (s *service) describeUser(ctx context.Context, userID int64, preferEmail bo
 	return u.Name
 }
 
-var wibLocation = mustLoadLocation("Asia/Jakarta")
-
-func mustLoadLocation(name string) *time.Location {
-	loc, err := time.LoadLocation(name)
-	if err != nil {
-		panic(err)
-	}
-	return loc
-}
-
-func formatWIB(t time.Time) string {
-	return t.In(wibLocation).Format("Monday, 2 January 2006 — 15:04 WIB")
+func formatBusinessTime(t time.Time) string {
+	return t.In(dateutil.BusinessLocation).Format("Monday, 2 January 2006 — 15:04 MST")
 }
 
 func formatDuration(clockInAt time.Time, clockOutAt *time.Time) string {
@@ -124,7 +114,7 @@ func timeField(label string, t, prev *time.Time) string {
 		if t == nil {
 			return "(open)"
 		}
-		return formatWIB(*t)
+		return formatBusinessTime(*t)
 	}
 
 	if prev != nil && format(prev) != format(t) {
